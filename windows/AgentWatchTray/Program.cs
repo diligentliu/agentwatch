@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 
 namespace AgentWatchTray;
 
@@ -345,6 +346,7 @@ static class StatusReader
 sealed class TrayApp : ApplicationContext
 {
     private NotifyIcon _tray = null!;
+    private SynchronizationContext _syncCtx = null!;
     private string _lastResult = "";
     private string _projectPath = "";
 
@@ -362,6 +364,7 @@ sealed class TrayApp : ApplicationContext
             Environment.Exit(1);
             return;
         }
+        _syncCtx = SynchronizationContext.Current!;
         Cli.ProjectPath = _projectPath;
         StatusReader.ProjectPath = _projectPath;
 
@@ -521,7 +524,7 @@ sealed class TrayApp : ApplicationContext
     private void RefreshUI(string? result = null)
     {
         if (result != null) _lastResult = result;
-        _tray?.BeginInvoke(RefreshUI_OnMain);
+        _syncCtx.Post(_ => RefreshUI_OnMain(), null);
     }
 
     private void RefreshUI_OnMain()
