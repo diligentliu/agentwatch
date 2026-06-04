@@ -152,12 +152,18 @@ PermissionDenied  ──▶     仅记录（不推送）
 
 **这样就够了，通知已经在工作。**
 
-### 方式二：CLI + 预构建桌面客户端（即将到来）
+### 方式二：下载预构建桌面客户端（推荐）
 
-未来的 GitHub Releases 会提供预构建的 `.app`（macOS）和 `.exe`（Windows）供直接下载。届时只需：
-1. 下载 `AgentWatch.app` 或 `AgentWatchTray.exe`
-2. 双击运行
-3. 从 GUI 配置 Bark key
+| 平台 | 下载 | 大小 |
+|------|------|------|
+| macOS (Apple Silicon) | [AgentWatch-macOS-arm64.zip](https://github.com/dongxutang918-afk/agentwatch/releases/download/v0.8.0/AgentWatch-macOS-arm64.zip) | 42 KB |
+| Windows | *仅源码——需执行 `windows\build_app.ps1` 构建* | — |
+
+下载后解压运行：
+- **macOS**：双击 `AgentWatch.app`（运行在菜单栏，无 Dock 图标）
+- 然后从 `● AW` → `Add / Update Bark Key...` 配置 Bark key
+
+> ⚠️ 仍需要在 CLI 中安装一次 Claude Code hooks：`bash install_claude_hooks.sh`（macOS）或对应的 PowerShell 命令（Windows）。桌面 App 是便捷面板——hooks 独立工作。
 
 ### 方式三：CLI + 从源码构建桌面客户端
 

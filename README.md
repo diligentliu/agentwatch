@@ -146,12 +146,18 @@ No GUI apps needed. The core functionality (hooks → watch notifications) works
 
 **This is all you need for notifications to work.** The GUI apps are convenience layers.
 
-### Option 2 — CLI + Pre-Built Desktop App (coming soon)
+### Option 2 — Download Pre-Built Apps (recommended)
 
-Future GitHub Releases will include pre-built `.app` (macOS) and `.exe` (Windows) for direct download. Just:
-1. Download `AgentWatch.app` or `AgentWatchTray.exe`
-2. Run it
-3. Configure your Bark key from the GUI
+| Platform | Download | Size |
+|----------|----------|------|
+| macOS (Apple Silicon) | [AgentWatch-macOS-arm64.zip](https://github.com/dongxutang918-afk/agentwatch/releases/download/v0.8.0/AgentWatch-macOS-arm64.zip) | 42 KB |
+| Windows | *(Source only — build with `windows\build_app.ps1`)* | — |
+
+After downloading, unzip and run:
+- **macOS**: Double-click `AgentWatch.app` (runs in menu bar, no Dock icon)
+- Then configure your Bark key from `● AW` → `Add / Update Bark Key...`
+
+> ⚠️ You still need to install Claude Code hooks from the CLI once: `bash install_claude_hooks.sh` (macOS) or the PowerShell equivalent (Windows). The desktop app is a convenience panel — hooks work independently.
 
 ### Option 3 — CLI + Build from Source
 
