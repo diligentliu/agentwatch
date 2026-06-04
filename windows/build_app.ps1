@@ -1,4 +1,4 @@
-# AgentWatch Windows — build the system tray app
+# AgentWatch Windows -- build the system tray app
 # Usage: powershell -ExecutionPolicy Bypass -File windows\build_app.ps1
 
 $ErrorActionPreference = "Stop"
@@ -7,7 +7,7 @@ $ProjectDir = Split-Path -Parent $ScriptDir
 $BuildDir   = Join-Path $ProjectDir "build\windows\AgentWatchTray"
 
 Write-Host "============================================"
-Write-Host "  AgentWatch — Building Windows Tray App"
+Write-Host "  AgentWatch -- Building Windows Tray App"
 Write-Host "============================================"
 Write-Host ""
 

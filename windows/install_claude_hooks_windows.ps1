@@ -1,4 +1,4 @@
-# AgentWatch — install Claude Code hooks for Windows
+# AgentWatch -- install Claude Code hooks for Windows
 # Usage: powershell -ExecutionPolicy Bypass -File windows\install_claude_hooks_windows.ps1
 
 $ErrorActionPreference = "Stop"
@@ -21,7 +21,7 @@ if (Test-Path $SettingsFile) {
     Copy-Item $SettingsFile $BackupFile
     Write-Host "[AgentWatch] Backed up to: $BackupFile"
 } else {
-    Write-Host "[AgentWatch] No existing settings.json — creating fresh."
+    Write-Host "[AgentWatch] No existing settings.json -- creating fresh."
 }
 
 # Read existing or create empty

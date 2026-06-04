@@ -1,16 +1,93 @@
-"""Configuration management for AgentWatch."""
+"""Configuration management for AgentWatch.
+
+Paths are auto-detected from the project root (where pyproject.toml lives).
+No hardcoded home-directory assumptions — works anywhere the user clones.
+"""
 
 import json
+import os
 import shutil
 from pathlib import Path
 from typing import Any
 
-DEFAULT_CONFIG_DIR = Path.home() / "Projects" / "agentwatch"
+# ── Project root detection ──────────────────────────────────────────────
+
+def _find_project_root() -> Path:
+    """Return the directory containing pyproject.toml.
+
+    Detection order:
+    1. Walk up from this file (agentwatch/config.py -> agentwatch/ -> root)
+    2. AGENTWATCH_HOME environment variable
+    3. Current working directory
+    4. ~/Projects/agentwatch (legacy compatibility)
+    """
+    # 1. Walk up from this config module.
+    here = Path(__file__).resolve().parent.parent
+    if (here / "pyproject.toml").exists():
+        return here
+
+    # 2. Environment variable.
+    env = os.environ.get("AGENTWATCH_HOME", "")
+    if env:
+        p = Path(env)
+        if (p / "pyproject.toml").exists():
+            return p
+
+    # 3. Current working directory.
+    cwd = Path.cwd()
+    if (cwd / "pyproject.toml").exists():
+        return cwd
+
+    # 4. Legacy default.
+    legacy = Path.home() / "Projects" / "agentwatch"
+    if legacy.exists():
+        return legacy
+
+    # Last resort: return cwd so the user sees a clear error.
+    return cwd
+
+
+_PROJECT_ROOT: Path | None = None
+
+
+def project_root() -> Path:
+    """Return the cached project root directory."""
+    global _PROJECT_ROOT
+    if _PROJECT_ROOT is None:
+        _PROJECT_ROOT = _find_project_root()
+    return _PROJECT_ROOT
+
+
+# ── Paths ───────────────────────────────────────────────────────────────
+
+def _config_file_path() -> Path:
+    return project_root() / "config.json"
+
+
+def _example_config_path() -> Path:
+    return project_root() / "config.example.json"
+
+
+def _logs_dir_path() -> Path:
+    return project_root() / "logs"
+
+
+def _state_file_path() -> Path:
+    return project_root() / "logs" / "state.json"
+
+
+# Module-level aliases — updated each time project_root() is evaluated.
+# (Safe because these are immutable Path objects; callers that store
+#  these at import time will have the correct value if root is fixed.)
+
+DEFAULT_CONFIG_DIR = project_root()
 CONFIG_FILE = DEFAULT_CONFIG_DIR / "config.json"
 EXAMPLE_CONFIG_FILE = DEFAULT_CONFIG_DIR / "config.example.json"
 LOGS_DIR = DEFAULT_CONFIG_DIR / "logs"
-STATE_FILE = DEFAULT_CONFIG_DIR / "logs" / "state.json"
+STATE_FILE = LOGS_DIR / "state.json"
 
+
+# ── Public API ──────────────────────────────────────────────────────────
 
 def load_config(path: Path | None = None) -> dict[str, Any]:
     """Load configuration from config.json.  Exit with a clear message if missing."""
@@ -28,20 +105,22 @@ def load_config(path: Path | None = None) -> dict[str, Any]:
 
 
 def init_config() -> Path:
-    """Copy config.example.json → config.json if the latter does not exist."""
+    """Copy config.example.json -> config.json if the latter does not exist."""
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
     if CONFIG_FILE.exists():
-        print(f"[AgentWatch] {CONFIG_FILE} already exists — skipping init.")
+        print(f"[AgentWatch] {CONFIG_FILE} already exists -- skipping init.")
         return CONFIG_FILE
 
     if not EXAMPLE_CONFIG_FILE.exists():
         print(f"[AgentWatch] {EXAMPLE_CONFIG_FILE} not found. Cannot initialise.")
+        print(f"[AgentWatch] Project root: {project_root()}")
+        print("[AgentWatch] Make sure config.example.json is in the project directory.")
         raise SystemExit(1)
 
     shutil.copy(EXAMPLE_CONFIG_FILE, CONFIG_FILE)
     print(f"[AgentWatch] Created {CONFIG_FILE}")
-    print("[AgentWatch]   → Edit it and fill in your notifier.bark_key.")
+    print("[AgentWatch]   -> Edit it and fill in your notifier.bark_key.")
     return CONFIG_FILE
 
 

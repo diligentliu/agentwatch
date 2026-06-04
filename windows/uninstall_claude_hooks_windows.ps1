@@ -1,4 +1,4 @@
-# AgentWatch — uninstall Claude Code hooks for Windows
+# AgentWatch -- uninstall Claude Code hooks for Windows
 # Usage: powershell -ExecutionPolicy Bypass -File windows\uninstall_claude_hooks_windows.ps1
 
 $ErrorActionPreference = "Stop"
@@ -68,7 +68,7 @@ if ($removed.Count -gt 0) {
     $settings | ConvertTo-Json -Depth 10 | Set-Content $SettingsFile -Encoding UTF8
     Write-Host "[AgentWatch] Removed hooks for: $($removed -join ', ')"
 } else {
-    Write-Host "[AgentWatch] No AgentWatch hooks found — nothing removed."
+    Write-Host "[AgentWatch] No AgentWatch hooks found -- nothing removed."
 }
 
 Write-Host ""

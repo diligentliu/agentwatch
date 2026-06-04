@@ -1,4 +1,4 @@
-# AgentWatch Windows — first-time setup
+# AgentWatch Windows -- first-time setup
 # Usage: powershell -ExecutionPolicy Bypass -File windows\setup_windows.ps1
 
 $ErrorActionPreference = "Stop"
@@ -6,7 +6,7 @@ $ScriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Split-Path -Parent $ScriptDir
 
 Write-Host "============================================"
-Write-Host "  AgentWatch — Windows First-Time Setup"
+Write-Host "  AgentWatch -- Windows First-Time Setup"
 Write-Host "============================================"
 Write-Host ""
 
@@ -17,7 +17,7 @@ if (-not (Test-Path $VenvPath)) {
     python -m venv $VenvPath
     Write-Host "      .venv created."
 } else {
-    Write-Host "[1/5] Virtual environment already exists — skipping."
+    Write-Host "[1/5] Virtual environment already exists -- skipping."
 }
 
 # 2. pip install
