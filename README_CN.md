@@ -157,23 +157,23 @@ PermissionDenied  ──▶     仅记录（不推送）
 | 平台 | 下载 | 大小 |
 |------|------|------|
 | macOS (Apple Silicon) | [AgentWatch-macOS-arm64.zip](https://github.com/dongxutang918-afk/agentwatch/releases/download/v0.8.0/AgentWatch-macOS-arm64.zip) | 42 KB |
-| Windows (x64) | [AgentWatch-Windows-x64.zip](https://github.com/dongxutang918-afk/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip) | 94 KB |
+| Windows (x64) | [AgentWatch-Windows-x64.zip](https://github.com/dongxutang918-afk/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip) | 96 KB |
 
-下载后解压运行：
-- **macOS**：双击 `AgentWatch.app`（运行在菜单栏，无 Dock 图标）
-- **Windows**：双击 `AgentWatchTray.exe`（运行在系统托盘，右下角）
-- 然后从 App 菜单中配置 Bark key
+下载解压后双击运行即可。全程不需要打开终端或 PowerShell：
 
-> ⚠️ **一次性安装 Claude Code hooks**：打开终端，复制粘贴下面这行命令回车即可。安装后 App 和 hooks 各自独立运行——关掉 App 通知照样推送。
->
-> **macOS：**
-> ```bash
-> bash ~/Projects/agentwatch/install_claude_hooks.sh
-> ```
-> **Windows：**
-> ```powershell
-> powershell -ExecutionPolicy Bypass -File %USERPROFILE%\Projects\agentwatch\windows\install_claude_hooks_windows.ps1
-> ```
+**macOS：**
+1. 双击 `AgentWatch.app`（运行在菜单栏右上角，无 Dock 图标）
+2. `● AW` → `Add / Update Bark Key...` → 粘贴 Bark key
+3. `● AW` → `Test Push` → 确认手机收到通知
+
+**Windows：**
+1. 双击 `AgentWatchTray.exe`（运行在系统托盘右下角）
+2. 首次启动选项目目录（自动记住）
+3. 右键托盘图标 → **Setup Python Environment**（一键装环境，缺 .venv 时自动弹窗）
+4. 右键 → **Add / Update Bark Key...** → 粘贴 Bark key
+5. 右键 → **Install / Update Claude Code Hooks**（一键装 hooks）
+
+搞定。托盘 App 和 hooks 各自独立运行——关掉 App 通知照样推送。
 
 ### 方式三：CLI + 从源码构建桌面客户端
 

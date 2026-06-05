@@ -151,25 +151,23 @@ No GUI apps needed. The core functionality (hooks → watch notifications) works
 | Platform | Download | Size |
 |----------|----------|------|
 | macOS (Apple Silicon) | [AgentWatch-macOS-arm64.zip](https://github.com/dongxutang918-afk/agentwatch/releases/download/v0.8.0/AgentWatch-macOS-arm64.zip) | 42 KB |
-| Windows (x64) | [AgentWatch-Windows-x64.zip](https://github.com/dongxutang918-afk/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip) | 94 KB |
+| Windows (x64) | [AgentWatch-Windows-x64.zip](https://github.com/dongxutang918-afk/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip) | 96 KB |
 
-After downloading, unzip and run:
-- **macOS**: Double-click `AgentWatch.app` (runs in menu bar, no Dock icon)
-- **Windows**: Double-click `AgentWatchTray.exe` (runs in system tray, bottom-right)
-- Then configure your Bark key from the app menu
+Download, unzip, double-click. No terminal needed.
 
-> ⚠️ **One-time setup**: install Claude Code hooks from CLI. Copy-paste the command below into your terminal:
->
-> **macOS:**
-> ```bash
-> bash ~/Projects/agentwatch/install_claude_hooks.sh
-> ```
-> **Windows:**
-> ```powershell
-> powershell -ExecutionPolicy Bypass -File %USERPROFILE%\Projects\agentwatch\windows\install_claude_hooks_windows.ps1
-> ```
->
-> After that, the desktop app and hooks work independently — you can close the app and notifications still fire.
+**macOS:**
+1. Double-click `AgentWatch.app` (menu bar top-right, no Dock icon)
+2. `● AW` → `Add / Update Bark Key...` → paste your Bark key
+3. `● AW` → `Test Push` → verify your watch receives it
+
+**Windows:**
+1. Double-click `AgentWatchTray.exe` (system tray bottom-right)
+2. First run picks project directory (auto-remembered)
+3. Right-click → **Setup Python Environment** (auto-prompted if .venv missing)
+4. Right-click → **Add / Update Bark Key...** → paste your Bark key
+5. Right-click → **Install / Update Claude Code Hooks** (one click)
+
+Done. The app and hooks run independently — close the app, notifications still fire.
 
 ### Option 3 — CLI + Build from Source
 
