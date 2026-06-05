@@ -17,61 +17,166 @@ static class Program
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Project path detection
+// Project path detection — never hardcodes a user directory.
 // ─────────────────────────────────────────────────────────────────────────────
 
 static class ProjectLocator
 {
+    private static string? _cached;
+    private static readonly string PersistFile =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                     "AgentWatch", "project_path.txt");
+
     public static string Find()
     {
-        // 1. AGENTWATCH_HOME env var
-        var env = Environment.GetEnvironmentVariable("AGENTWATCH_HOME");
-        if (!string.IsNullOrEmpty(env) && Directory.Exists(env))
-            return env;
+        if (_cached != null) return _cached;
 
-        // 2. Search up from exe directory for pyproject.toml
-        var dir = AppContext.BaseDirectory;
-        for (int i = 0; i < 6; i++)
+        string? found = null;
+
+        // 1. AGENTWATCH_HOME env var.
+        found = TryEnv();
+        if (found != null) { _cached = found; return found; }
+
+        // 2. Walk up from the exe directory looking for pyproject.toml.
+        found = TryWalkUp(AppContext.BaseDirectory);
+        if (found != null) { _cached = found; return found; }
+
+        // 3. Walk up from current directory.
+        found = TryWalkUp(Directory.GetCurrentDirectory());
+        if (found != null) { _cached = found; return found; }
+
+        // 4. Saved preference from a previous successful run.
+        found = TrySaved();
+        if (found != null) { _cached = found; return found; }
+
+        // 5. Common defaults (only if they actually contain pyproject.toml).
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        foreach (var candidate in new[] {
+            Path.Combine(home, "Projects", "agentwatch"),
+            Path.Combine(home, "agentwatch"),
+        }) {
+            if (File.Exists(Path.Combine(candidate, "pyproject.toml"))) {
+                _cached = candidate; Persist(candidate); return candidate;
+            }
+        }
+
+        // 6. Nothing found — ask the user.
+        found = AskUser();
+        if (found != null) { _cached = found; Persist(found); return found; }
+
+        return "";
+    }
+
+    private static string? TryEnv()
+    {
+        var e = Environment.GetEnvironmentVariable("AGENTWATCH_HOME");
+        if (!string.IsNullOrEmpty(e) && File.Exists(Path.Combine(e, "pyproject.toml")))
+            return e;
+        return null;
+    }
+
+    private static string? TryWalkUp(string startDir)
+    {
+        var dir = startDir;
+        for (int i = 0; i < 8; i++)
         {
-            if (File.Exists(Path.Combine(dir, "pyproject.toml")) &&
-                Directory.Exists(Path.Combine(dir, "agentwatch")))
+            if (File.Exists(Path.Combine(dir, "pyproject.toml")))
                 return dir;
             var parent = Directory.GetParent(dir);
             if (parent == null) break;
             dir = parent.FullName;
         }
+        return null;
+    }
 
-        // 3. Default paths
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var def = Path.Combine(home, "Projects", "agentwatch");
-        if (Directory.Exists(def)) return def;
-        var def2 = Path.Combine(home, "agentwatch");
-        if (Directory.Exists(def2)) return def2;
+    private static string? TrySaved()
+    {
+        try
+        {
+            if (File.Exists(PersistFile))
+            {
+                var saved = File.ReadAllText(PersistFile).Trim();
+                if (!string.IsNullOrEmpty(saved) && File.Exists(Path.Combine(saved, "pyproject.toml")))
+                    return saved;
+            }
+        }
+        catch { }
+        return null;
+    }
 
-        return ""; // Caller shows error dialog
+    private static string? AskUser()
+    {
+        using var dlg = new FolderBrowserDialog
+        {
+            Description = "Select the AgentWatch project directory (the one containing pyproject.toml)",
+            ShowNewFolderButton = false,
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        };
+        if (dlg.ShowDialog() != DialogResult.OK) return null;
+        var chosen = dlg.SelectedPath;
+        if (File.Exists(Path.Combine(chosen, "pyproject.toml")))
+            return chosen;
+        MessageBox.Show(
+            "The selected folder does not contain pyproject.toml.\nPlease select the AgentWatch project root directory.",
+            "Invalid Project Directory", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        return AskUser(); // recurse
+    }
+
+    private static void Persist(string path)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(PersistFile)!);
+            File.WriteAllText(PersistFile, path);
+        }
+        catch { }
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CLI runner
+// CLI runner — all paths derived from ProjectPath dynamically.
 // ─────────────────────────────────────────────────────────────────────────────
 
 static class Cli
 {
     public static string ProjectPath { get; set; } = "";
+    private static bool _venvWarned = false;
+
+    private static string VenvPython =>
+        Path.Combine(ProjectPath, ".venv", "Scripts", "python.exe");
+    private static string VenvAgentWatch =>
+        Path.Combine(ProjectPath, ".venv", "Scripts", "agentwatch.exe");
 
     private static string AgentWatchExe =>
-        File.Exists(Path.Combine(ProjectPath, ".venv", "Scripts", "agentwatch.exe"))
-            ? Path.Combine(ProjectPath, ".venv", "Scripts", "agentwatch.exe")
-            : Path.Combine(ProjectPath, ".venv", "Scripts", "python.exe");
+        File.Exists(VenvAgentWatch) ? VenvAgentWatch : VenvPython;
 
     private static string[] AgentWatchArgs(string[] args) =>
         AgentWatchExe.EndsWith("agentwatch.exe")
             ? args
             : new[] { "-m", "agentwatch.cli" }.Concat(args).ToArray();
 
+    /// True when .venv\Scripts\python.exe exists and the CLI is callable.
+    public static bool HasVenv =>
+        File.Exists(VenvPython);
+
     public static (string stdout, string stderr, int exitCode)? Run(string[] args, int timeoutSec = 15)
     {
+        if (!HasVenv)
+        {
+            if (!_venvWarned)
+            {
+                _venvWarned = true;
+                MessageBox.Show(
+                    "AgentWatch virtual environment not found.\n\n" +
+                    $"Expected: {VenvPython}\n\n" +
+                    "Run this command in PowerShell to set it up:\n\n" +
+                    $"  powershell -ExecutionPolicy Bypass -File \"{Path.Combine(ProjectPath, "windows", "setup_windows.ps1")}\"",
+                    "Virtual Environment Missing",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            return ("", "venv not found", -1);
+        }
+
         try
         {
             var psi = new ProcessStartInfo
@@ -120,7 +225,8 @@ record AppStatus(
     bool BarkOk, string BarkDisplay, bool HooksInstalled, int HookCount,
     string? TaskName, List<string> AllowedPaths, List<string> ForbiddenPaths,
     List<EventSummary> RecentEvents, string Overall, string NotificationMode,
-    int PendingApprovals, string PersonaTheme, bool TimeoutWatchNotify);
+    int PendingApprovals, string PersonaTheme, bool TimeoutWatchNotify,
+    bool VenvOk, string ProjectRoot);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Status reader
@@ -154,7 +260,6 @@ static class StatusReader
         return key[..4] + new string('*', Math.Max(0, key.Length - 7)) + key[^3..];
     }
 
-    /// Map source field to short display label.
     public static string SourceLabel(string? source) => source switch
     {
         "pending_pretooluse_timeout"      => "pending",
@@ -195,7 +300,7 @@ static class StatusReader
                 notificationMode = np["mode"]?.GetValue<string>() ?? "actionable";
         }
 
-        // --- Persona theme ---
+        // --- Persona ---
         string personaTheme = "off";
         if (config != null)
         {
@@ -208,7 +313,7 @@ static class StatusReader
             }
         }
 
-        // --- Approval timeout notify ---
+        // --- Approval timeout ---
         bool timeoutWatchNotify = false;
         if (config != null)
         {
@@ -231,7 +336,8 @@ static class StatusReader
                 var hooks = cs?["hooks"]?.AsObject();
                 if (hooks != null)
                 {
-                    foreach (var evt in new[] { "PreToolUse", "PostToolUse", "Notification", "Stop", "PermissionRequest", "PermissionDenied" })
+                    foreach (var evt in new[] { "PreToolUse", "PostToolUse", "Notification",
+                                                 "Stop", "PermissionRequest", "PermissionDenied" })
                     {
                         var arr = hooks[evt]?.AsArray();
                         if (arr == null) continue;
@@ -289,7 +395,7 @@ static class StatusReader
                 }
             }
         }
-        catch { pendingCount = -1; } // -1 = error reading
+        catch { pendingCount = -1; }
 
         // --- Recent events ---
         var recent = new List<EventSummary>();
@@ -315,9 +421,7 @@ static class StatusReader
                 var time = ts.Length >= 19 ? ts.Substring(11, 8) : "";
                 var body = ev["body"]?.GetValue<string>() ?? "";
                 var firstLine = body.Split('\n')[0];
-                var wasNotified = false;
-                if (ev["notified"] != null)
-                    wasNotified = ev["notified"]!.GetValue<bool>();
+                var wasNotified = ev["notified"] != null && ev["notified"]!.GetValue<bool>();
                 var source = ev["source"]?.GetValue<string>() ?? "";
                 recent.Add(new EventSummary(
                     time, etype,
@@ -331,18 +435,25 @@ static class StatusReader
         // --- Overall ---
         string overall;
         if (!barkOk) overall = "No Bark Key";
+        else if (!ClisVenvOk()) overall = "No .venv";
         else if (!hooksInstalled) overall = "Hooks Missing";
         else if (recent.Any(r => r.EventType is "danger" or "drift" or "failure")) overall = "Recent Risk";
         else overall = "Ready";
 
         return new AppStatus(barkOk, barkDisplay, hooksInstalled, hookCount,
             taskName, allowed, forbidden, recent, overall, notificationMode,
-            pendingCount, personaTheme, timeoutWatchNotify);
+            pendingCount, personaTheme, timeoutWatchNotify,
+            ClisVenvOk(), ProjectPath);
+    }
+
+    private static bool ClisVenvOk()
+    {
+        return File.Exists(Path.Combine(ProjectPath, ".venv", "Scripts", "python.exe"));
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tray application
+// Tray application — all paths derived from _projectPath at runtime.
 // ─────────────────────────────────────────────────────────────────────────────
 
 sealed class TrayApp : ApplicationContext
@@ -355,17 +466,18 @@ sealed class TrayApp : ApplicationContext
     public TrayApp()
     {
         _projectPath = ProjectLocator.Find();
-        if (string.IsNullOrEmpty(_projectPath) || !Directory.Exists(_projectPath))
+        if (string.IsNullOrEmpty(_projectPath))
         {
             MessageBox.Show(
-                "AgentWatch project not found.\n\n" +
-                "Please set the AGENTWATCH_HOME environment variable to the project directory.\n\n" +
-                "Default: %USERPROFILE%\\Projects\\agentwatch",
-                "AgentWatch — Project Not Found",
+                "AgentWatch project directory not found.\n\n" +
+                "The project must contain 'pyproject.toml' and 'agentwatch/'.\n\n" +
+                "Clone the repo or set AGENTWATCH_HOME environment variable.",
+                "AgentWatch -- Project Not Found",
                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
             Environment.Exit(1);
             return;
         }
+
         _syncCtx = SynchronizationContext.Current!;
         Cli.ProjectPath = _projectPath;
         StatusReader.ProjectPath = _projectPath;
@@ -391,7 +503,7 @@ sealed class TrayApp : ApplicationContext
         "task_done"                => "✓",
         "attention_required"       => "‼",
         "permission_required"      => "‼",
-        "permission_denied"         => "✕",
+        "permission_denied"        => "✕",
         "possible_permission_wait" => "⏳",
         _                          => "·",
     };
@@ -404,22 +516,23 @@ sealed class TrayApp : ApplicationContext
         _tray.Text = $"AgentWatch - {status.Overall}";
 
         var menu = new ContextMenuStrip();
-        menu.Items.Add(DisabledItem($"AgentWatch — {status.Overall}"));
+        menu.Items.Add(DisabledItem($"AgentWatch -- {status.Overall}"));
         menu.Items.Add(new ToolStripSeparator());
 
         // Status
-        menu.Items.Add(DisabledItem($"Bark: {(status.BarkOk ? "✓ OK" : "✗ " + status.BarkDisplay)}"));
-        var hooksText = status.HooksInstalled ? "✓ Installed" :
-            status.HookCount >= 4 ? "✗ Missing PermissionRequest" : "✗ Missing";
+        menu.Items.Add(DisabledItem($"Project: {TruncatePath(status.ProjectRoot, 55)}"));
+        menu.Items.Add(DisabledItem($"Virtual Env: {(status.VenvOk ? "OK" : "MISSING")}"));
+        menu.Items.Add(DisabledItem($"Bark: {(status.BarkOk ? "OK" : status.BarkDisplay)}"));
+        var hooksText = status.HooksInstalled ? "Installed" :
+            status.HookCount >= 4 ? "Missing PermissionRequest" : "Missing";
         menu.Items.Add(DisabledItem($"Hooks: {hooksText}"));
         menu.Items.Add(DisabledItem($"Notif Mode: {status.NotificationMode}"));
         menu.Items.Add(DisabledItem($"Persona: {PersonaDisplayName(status.PersonaTheme)}"));
         menu.Items.Add(DisabledItem($"Approval Timeout Notify: {(status.TimeoutWatchNotify ? "On" : "Off")}"));
 
-        // Pending approvals
         var paText = status.PendingApprovals switch
         {
-            -1 => "Pending approvals: (error reading)",
+            -1 => "Pending approvals: (error)",
             _  => $"Pending approvals: {status.PendingApprovals}",
         };
         menu.Items.Add(DisabledItem(paText));
@@ -459,12 +572,8 @@ sealed class TrayApp : ApplicationContext
         var personaSubmenu = new ToolStripMenuItem("Persona Theme");
         var themes = new (string Key, string Name)[]
         {
-            ("off",         "Off"),
-            ("boss",        "总裁版"),
-            ("heir_male",   "少爷版"),
-            ("heir_female", "大小姐版"),
-            ("emperor",     "皇上版"),
-            ("palace",      "甄嬛版"),
+            ("off", "Off"), ("boss", "总裁版"), ("heir_male", "少爷版"),
+            ("heir_female", "大小姐版"), ("emperor", "皇上版"), ("palace", "甄嬛版"),
         };
         var currentTheme = status.PersonaTheme;
         foreach (var (key, name) in themes)
@@ -488,7 +597,6 @@ sealed class TrayApp : ApplicationContext
 
         menu.Items.Add(new ToolStripSeparator());
 
-        // Approval detection test items
         menu.Items.Add(ActionItem("Test Permission Request", (_, _) => TestPermissionRequest()));
         menu.Items.Add(ActionItem("Test Permission Denied", (_, _) => TestPermissionDenied()));
         menu.Items.Add(ActionItem("Test Approval Pending", (_, _) => TestApprovalPending()));
@@ -523,28 +631,27 @@ sealed class TrayApp : ApplicationContext
         oldMenu?.Dispose();
     }
 
+    private static string TruncatePath(string p, int max)
+    {
+        if (p.Length <= max) return p;
+        return "..." + p[^(max - 3)..];
+    }
+
     private void RefreshUI(string? result = null)
     {
         if (result != null) _lastResult = result;
         _syncCtx.Post(_ => RefreshUI_OnMain(), null);
     }
 
-    private void RefreshUI_OnMain()
-    {
-        RebuildMenu();
-    }
+    private void RefreshUI_OnMain() => RebuildMenu();
 
-    // ── Persona helpers ──────────────────────────────────────────────────
+    // ── Persona ───────────────────────────────────────────────────────────
 
     private static string PersonaDisplayName(string theme) => theme switch
     {
-        "off"         => "Off",
-        "boss"        => "总裁版",
-        "heir_male"   => "少爷版",
-        "heir_female" => "大小姐版",
-        "emperor"     => "皇上版",
-        "palace"      => "甄嬛版",
-        _             => $"Unknown ({theme})",
+        "off" => "Off", "boss" => "总裁版", "heir_male" => "少爷版",
+        "heir_female" => "大小姐版", "emperor" => "皇上版", "palace" => "甄嬛版",
+        _ => $"Unknown ({theme})",
     };
 
     private void SetPersonaTheme(string theme, string name)
@@ -559,24 +666,18 @@ sealed class TrayApp : ApplicationContext
             var result = Cli.Run(args, timeoutSec: 10);
             var ok = result?.exitCode == 0;
             if (ok)
-            {
-                MessageBox.Show($"Persona theme updated: {name}",
-                    "Persona Theme Updated",
+                MessageBox.Show($"Persona theme updated: {name}", "Persona Theme Updated",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
             else
-            {
                 MessageBox.Show(result?.stderr ?? "Failed to update persona theme.",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
             RefreshUI(ok ? $"Persona: {name}" : "Persona update failed.");
         });
     }
 
     // ── Menu item factories ──────────────────────────────────────────────
 
-    private static ToolStripMenuItem DisabledItem(string text) =>
-        new(text) { Enabled = false };
+    private static ToolStripMenuItem DisabledItem(string text) => new(text) { Enabled = false };
 
     private static ToolStripMenuItem ActionItem(string text, EventHandler handler)
     {
@@ -619,15 +720,11 @@ sealed class TrayApp : ApplicationContext
             var keyLine = outText.Split('\n')
                 .FirstOrDefault(l => l.Contains("key updated") || l.Contains("Bark key"))?.Trim() ?? "";
             if (ok && !string.IsNullOrEmpty(keyLine))
-            {
                 MessageBox.Show(keyLine, "Bark Key Updated",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
             else
-            {
                 MessageBox.Show(result?.stderr ?? "Failed to update Bark key.",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
             RefreshUI(ok ? "Bark key updated." : "Bark key update failed.");
         });
     }
@@ -641,15 +738,13 @@ sealed class TrayApp : ApplicationContext
             var configJson = JsonNode.Parse(
                 File.ReadAllText(Path.Combine(_projectPath, "config.json")))?.AsObject();
             var notif = configJson?["notifier"]?.AsObject();
-            if (notif != null)
-                server = notif["bark_server"]?.GetValue<string>() ?? server;
+            if (notif != null) server = notif["bark_server"]?.GetValue<string>() ?? server;
         }
         catch { }
         MessageBox.Show(
             $"Bark:  {(status.BarkOk ? "OK" : "Missing")}\n" +
             $"Server: {server}\nKey:   {status.BarkDisplay}",
-            "Bark Configuration",
-            MessageBoxButtons.OK, MessageBoxIcon.Information);
+            "Bark Configuration", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     private void TestPush()
@@ -657,14 +752,12 @@ sealed class TrayApp : ApplicationContext
         _lastResult = "Testing push...";
         RebuildMenu();
         RunAsync(new[] { "config", "test" },
-            successMsg: "Last: Test push sent ✓",
-            failMsg: "Last: Test push failed ✗");
+            successMsg: "Last: Test push sent", failMsg: "Last: Test push failed");
     }
 
     private void SetTaskBoundary()
     {
-        var name = Microsoft.VisualBasic.Interaction.InputBox(
-            "Task name:", "Set Task Boundary", "");
+        var name = Microsoft.VisualBasic.Interaction.InputBox("Task name:", "Set Task Boundary", "");
         if (string.IsNullOrWhiteSpace(name)) return;
         var allowed = Microsoft.VisualBasic.Interaction.InputBox(
             "Allowed paths (comma-separated):", "Set Task Boundary",
@@ -674,10 +767,8 @@ sealed class TrayApp : ApplicationContext
             ".env,.git,config.json,agentwatch,pyproject.toml,README.md,install_claude_hooks.sh,uninstall_claude_hooks.sh");
         _lastResult = "Setting task boundary...";
         RebuildMenu();
-        RunAsync(new[] { "task", "start", "--name", name,
-            "--allow", allowed ?? "", "--forbid", forbidden ?? "" },
-            successMsg: $"Task boundary set: {name}",
-            failMsg: "Failed to set task boundary.");
+        RunAsync(new[] { "task", "start", "--name", name, "--allow", allowed ?? "", "--forbid", forbidden ?? "" },
+            successMsg: $"Task boundary set: {name}", failMsg: "Failed to set task boundary.");
     }
 
     private void ClearTaskBoundary()
@@ -685,19 +776,16 @@ sealed class TrayApp : ApplicationContext
         _lastResult = "Clearing task boundary...";
         RebuildMenu();
         RunAsync(new[] { "task", "clear" },
-            successMsg: "Task boundary cleared.",
-            failMsg: "Failed to clear task boundary.");
+            successMsg: "Task boundary cleared.", failMsg: "Failed to clear task boundary.");
     }
-
-    // ── Approval detection test actions ─────────────────────────────────
 
     private void TestPermissionRequest()
     {
         _lastResult = "Testing PermissionRequest...";
         RebuildMenu();
         RunAsync(new[] { "simulate", "permission-request" }, timeoutSec: 15,
-            successMsg: "PermissionRequest simulated — check Watch.",
-            failMsg: "PermissionRequest test failed — check logs.");
+            successMsg: "PermissionRequest simulated -- check Watch.",
+            failMsg: "PermissionRequest test failed -- check logs.");
     }
 
     private void TestPermissionDenied()
@@ -706,22 +794,19 @@ sealed class TrayApp : ApplicationContext
         RebuildMenu();
         RunAsync(new[] { "simulate", "permission-denied" }, timeoutSec: 15,
             successMsg: "PermissionDenied simulated (logged only).",
-            failMsg: "PermissionDenied test failed — check logs.");
+            failMsg: "PermissionDenied test failed -- check logs.");
     }
 
     private void PreviewPersona()
     {
         ThreadPool.QueueUserWorkItem(_ =>
         {
-            var resultPerm = Cli.Run(new[] { "persona", "test", "permission" }, timeoutSec: 10);
-            var resultDone = Cli.Run(new[] { "persona", "test", "done" }, timeoutSec: 10);
-            var permOut = resultPerm?.stdout ?? "(error)";
-            var doneOut = resultDone?.stdout ?? "(error)";
+            var r1 = Cli.Run(new[] { "persona", "test", "permission" }, timeoutSec: 10);
+            var r2 = Cli.Run(new[] { "persona", "test", "done" }, timeoutSec: 10);
             var preview = "Persona Preview\n\n" +
-                          "Permission:\n" + permOut + "\n\n" +
-                          "Done:\n" + doneOut;
-            var maxLen = 800;
-            if (preview.Length > maxLen) preview = preview[..(maxLen - 3)] + "...";
+                          "Permission:\n" + (r1?.stdout ?? "(error)") + "\n\n" +
+                          "Done:\n" + (r2?.stdout ?? "(error)");
+            if (preview.Length > 900) preview = preview[..897] + "...";
             MessageBox.Show(preview, "Persona Preview",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
         });
@@ -732,8 +817,8 @@ sealed class TrayApp : ApplicationContext
         _lastResult = "Testing approval pending...";
         RebuildMenu();
         RunAsync(new[] { "simulate", "approval-pending" }, timeoutSec: 30,
-            successMsg: "Approval pending simulation done — check Watch.",
-            failMsg: "Approval pending test failed — check logs.");
+            successMsg: "Approval pending simulation done -- check Watch.",
+            failMsg: "Approval pending test failed -- check logs.");
     }
 
     private void TestAutoExec()
@@ -741,26 +826,26 @@ sealed class TrayApp : ApplicationContext
         _lastResult = "Testing auto exec...";
         RebuildMenu();
         RunAsync(new[] { "simulate", "auto-exec" }, timeoutSec: 15,
-            successMsg: "Auto exec simulation done — no notification expected.",
-            failMsg: "Auto exec test failed — check logs.");
+            successMsg: "Auto exec simulation done -- no notification expected.",
+            failMsg: "Auto exec test failed -- check logs.");
     }
 
-    // ── Open / launch actions ─────────────────────────────────────────────
+    // ── Open / launch ─────────────────────────────────────────────────────
 
     private void OpenMonitor()
     {
-        var script = $"cd \"{_projectPath}\"; .\\.venv\\Scripts\\agentwatch.exe monitor";
+        var agentwatch = Path.Combine(_projectPath, ".venv", "Scripts", "agentwatch.exe");
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoExit -Command \"{script}\"",
-            WorkingDirectory = _projectPath,
+            Arguments = $"-NoExit -Command \"cd '{_projectPath}'; & '{agentwatch}' monitor\"",
             UseShellExecute = true,
         };
-        try { Process.Start(psi); } catch (Exception ex)
+        try { Process.Start(psi); }
+        catch (Exception ex)
         {
-            MessageBox.Show($"Failed to open PowerShell: {ex.Message}",
-                "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show($"Failed to open PowerShell: {ex.Message}", "Error",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 
@@ -778,11 +863,7 @@ sealed class TrayApp : ApplicationContext
     {
         var path = Path.Combine(_projectPath, relativePath);
         if (File.Exists(path))
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = path,
-                UseShellExecute = true,
-            })?.Dispose();
+            Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true })?.Dispose();
         else
             MessageBox.Show($"File not found: {path}", "Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -790,14 +871,15 @@ sealed class TrayApp : ApplicationContext
 
     private void CopySetupCommands()
     {
+        var setupScript = Path.Combine(_projectPath, "windows", "setup_windows.ps1");
         var cmds = string.Join("\r\n",
-            "cd %USERPROFILE%\\Projects\\agentwatch",
+            $"cd /d \"{_projectPath}\"",
             "python -m venv .venv",
-            ".\\.venv\\Scripts\\activate",
-            "pip install -e .",
-            "agentwatch init",
-            "agentwatch config bark",
-            "agentwatch config test");
+            ".venv\\Scripts\\python.exe -m pip install -e .",
+            ".venv\\Scripts\\agentwatch.exe init",
+            ".venv\\Scripts\\agentwatch.exe config bark",
+            ".venv\\Scripts\\agentwatch.exe config test",
+            $"powershell -ExecutionPolicy Bypass -File \"{setupScript}\"");
         Clipboard.SetText(cmds);
         _lastResult = "Setup commands copied to clipboard.";
         RebuildMenu();
