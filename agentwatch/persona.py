@@ -41,6 +41,10 @@ PERSONAS: dict[str, dict[str, dict[str, str]]] = {
             "title": "全场等您一句话",
             "body": "总裁，现在所有人都在等您拍板。\n建议：回电脑处理。",
         },
+        "guard_blocked": {
+            "title": "我替您拦下了",
+            "body": "总裁！有人要动保险柜，我已先斩后奏拦下了！\n建议：如确需执行，请回电脑手动放行。",
+        },
         "danger": {
             "title": "有人动了保险柜",
             "body": "总裁！有人碰了不该碰的东西，这一步不能让他们自己决定！\n建议：立即回电脑确认。",
@@ -80,6 +84,10 @@ PERSONAS: dict[str, dict[str, dict[str, str]]] = {
         "attention_required": {
             "title": "请您定夺",
             "body": "少爷，下面的人拿不准主意，还请您回电脑定夺。",
+        },
+        "guard_blocked": {
+            "title": "已替您拦下",
+            "body": "少爷，有人要碰不该碰的东西，管家已擅自拦下。\n建议：如确需执行，请回电脑手动放行。",
         },
         "danger": {
             "title": "保险柜被打开了",
@@ -121,6 +129,10 @@ PERSONAS: dict[str, dict[str, dict[str, str]]] = {
             "title": "请您定夺",
             "body": "大小姐，下面的人拿不准主意，还请您回电脑定夺。",
         },
+        "guard_blocked": {
+            "title": "已替您拦下",
+            "body": "大小姐，有人要碰不该碰的东西，管家已擅自拦下。\n建议：如确需执行，请回电脑手动放行。",
+        },
         "danger": {
             "title": "保险柜被打开了",
             "body": "大小姐，有人碰了不该碰的东西，建议您立刻回电脑。",
@@ -161,6 +173,10 @@ PERSONAS: dict[str, dict[str, dict[str, str]]] = {
             "title": "请皇上定夺",
             "body": "皇上，下面的人拿不准主意，特来请您圣裁。",
         },
+        "guard_blocked": {
+            "title": "奴才已拦下",
+            "body": "皇上，有人要动宫里的禁物，奴才斗胆先拦下了。\n建议：如确需亲为，请回电脑手动放行。",
+        },
         "danger": {
             "title": "触犯禁区",
             "body": "皇上，不好了，有人动了宫里的禁物，请您速速御览。",
@@ -200,6 +216,10 @@ PERSONAS: dict[str, dict[str, dict[str, str]]] = {
         "attention_required": {
             "title": "请主子定夺",
             "body": "主子，此事关系后续安排，还需您亲自定夺。",
+        },
+        "guard_blocked": {
+            "title": "已替主子拦下",
+            "body": "主子，有人要碰不该碰的东西，奴才自作主张拦下了。\n建议：如确需执行，请回电脑手动示下。",
         },
         "danger": {
             "title": "宫中有异动",

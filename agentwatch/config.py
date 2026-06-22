@@ -146,3 +146,46 @@ def get_failure_policy(config: dict[str, Any]) -> dict[str, Any]:
 
 def get_notification_rules(config: dict[str, Any]) -> dict[str, Any]:
     return config.get("notification_rules", {})
+
+
+# ── Guard mode ──────────────────────────────────────────────────────────
+
+# Risk levels from most to least severe, as produced by policy.evaluate_danger.
+# Index 0 = most severe.
+RISK_ORDER: list[str] = ["极高", "高", "中", "低"]
+
+
+def risk_rank(risk: str) -> int:
+    """Return the severity rank of *risk* (0 = most severe).
+
+    Unknown values rank as least severe so they never trip a guard threshold.
+    """
+    try:
+        return RISK_ORDER.index(risk)
+    except ValueError:
+        return len(RISK_ORDER)
+
+
+def risk_at_least(risk: str, threshold: str) -> bool:
+    """True when *risk* is at least as severe as *threshold*.
+
+    Severity is ranked by RISK_ORDER, so a lower rank index means higher
+    severity — hence the ``<=`` comparison.
+    """
+    return risk_rank(risk) <= risk_rank(threshold)
+
+
+def get_guard_mode(config: dict[str, Any]) -> dict[str, Any]:
+    """Return the guard_mode block with safe defaults.
+
+    Guard mode is OFF by default.  When enabled, the PreToolUse hook can DENY a
+    dangerous operation before it runs (see cli.cmd_hook).  ``action`` is one of
+    "deny" (hard block, reason fed to Claude), "ask" (prompt the user), or
+    "warn" (notify only, do not block).  ``min_risk`` gates which operations are
+    guarded — only those at/above this risk level (default 极高, the most severe).
+    """
+    gm = dict(config.get("guard_mode", {}) or {})
+    gm.setdefault("enabled", False)
+    gm.setdefault("action", "deny")
+    gm.setdefault("min_risk", "极高")
+    return gm
