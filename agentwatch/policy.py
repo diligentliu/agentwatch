@@ -156,6 +156,7 @@ def get_notification_policy(config: dict[str, Any]) -> dict[str, Any]:
     npolicy = config.get("notification_policy", {}) or {}
     npolicy.setdefault("mode", "actionable")
     npolicy.setdefault("notify_on_task_done", True)
+    npolicy.setdefault("notify_on_guard_block", True)
     npolicy.setdefault("notify_on_interactive_attention", True)
     npolicy.setdefault("notify_on_pretooluse", False)
     npolicy.setdefault("notify_on_danger", False)
@@ -181,6 +182,11 @@ def should_send_notification(event_type: str, npolicy: dict[str, Any]) -> bool:
     if event_type in ("info", "pretooluse", "posttooluse", "posttooluse_error",
                        "possible_permission_wait", "permission_denied"):
         return False
+
+    # Guard block — a denied dangerous op is always worth surfacing; mode-
+    # independent, on by default.
+    if event_type == "guard_blocked":
+        return npolicy.get("notify_on_guard_block", True)
 
     if mode == "verbose":
         return True
