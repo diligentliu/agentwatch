@@ -24,6 +24,8 @@ from agentwatch.config import (
     get_risk_policy,
     get_task_boundary,
     get_failure_policy,
+    get_guard_mode,
+    risk_at_least,
 )
 from agentwatch.event_parser import (
     parse_event,
@@ -91,6 +93,38 @@ def _ansi(code: str) -> str:
 def _risk_color(risk: str) -> str:
     mapping = {"极高": _ansi("red"), "高": _ansi("red"), "中": _ansi("yellow"), "低": _ansi("green")}
     return mapping.get(risk, _ansi("reset"))
+
+
+def _hook_diag(message: str) -> None:
+    """Emit a hook diagnostic line to STDERR.
+
+    During a hook invocation, stdout is reserved for the decision JSON that
+    Claude Code parses (e.g. PreToolUse permissionDecision).  Every human-facing
+    diagnostic must go to stderr so it never corrupts that JSON.
+    """
+    print(message, file=sys.stderr, flush=True)
+
+
+def _emit_decision(payload: dict[str, Any]) -> None:
+    """Write a single hook decision JSON object to STDOUT — and nothing else.
+
+    Guard mode uses this to DENY a tool call.  It must be the only thing written
+    to stdout during the hook so Claude Code can parse the decision cleanly.
+    """
+    print(json.dumps(payload, ensure_ascii=False), flush=True)
+
+
+def _guard_reason(danger_info: dict[str, Any]) -> str:
+    """Build the permissionDecisionReason fed back to Claude when guard denies.
+
+    Written so Claude understands this is a hard block and should NOT retry.
+    """
+    risk = danger_info.get("risk", "高")
+    kws = ", ".join(danger_info.get("matched_keywords", [])[:3]) or "危险操作"
+    return (
+        f"AgentWatch guard mode 已拦截此操作（风险：{risk}，命中：{kws}）。"
+        f"这是无人值守安全策略的硬拦截，请勿重试；如确需执行，请提示用户在本机手动操作。"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +213,30 @@ def cmd_hook(event_name: str) -> None:
             danger_info = evaluate_danger(tool_name, raw_text, risk_policy)
             drift_info = evaluate_drift(raw_text, task_boundary)
 
-            if danger_info:
+            # ── Guard mode ──────────────────────────────────────────────
+            # When enabled (OFF by default), a dangerous operation at/above
+            # min_risk is DENIED before it runs.  The deny JSON is the only
+            # thing written to stdout (diagnostics go to stderr).
+            guard = get_guard_mode(config)
+            guard_block = (
+                danger_info is not None
+                and guard.get("enabled", False)
+                and guard.get("action") == "deny"
+                and risk_at_least(danger_info.get("risk", "低"), guard.get("min_risk", "极高"))
+            )
+
+            if guard_block:
+                final_type = "guard_blocked"
+                source = "hook_pretooluse_guard_blocked"
+                _emit_decision({
+                    "hookSpecificOutput": {
+                        "hookEventName": "PreToolUse",
+                        "permissionDecision": "deny",
+                        "permissionDecisionReason": _guard_reason(danger_info),
+                    }
+                })
+                _hook_diag(f"[AgentWatch] Guard mode DENIED a {danger_info.get('risk')} operation.")
+            elif danger_info:
                 final_type = "danger"
                 source = "hook_pretooluse_danger"
             elif drift_info:
@@ -190,7 +247,7 @@ def cmd_hook(event_name: str) -> None:
                 source = "hook_pretooluse"
 
             # ── Approval detection ──────────────────────────────────────
-            if approval_enabled and tool_name in candidate_tools:
+            if not guard_block and approval_enabled and tool_name in candidate_tools:
                 action_id = make_pending_action_id(parsed)
                 summary = extract_tool_summary(parsed)
                 tuid = extract_tool_identity(parsed)

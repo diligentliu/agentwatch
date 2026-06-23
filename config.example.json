@@ -69,6 +69,8 @@
     "notify_on_interactive_attention": true,
     "notify_on_pretooluse": false,
     "notify_on_danger": false,
+    "_comment_guard": "Push a Watch notification when guard_mode blocks a dangerous operation (see the guard_mode block).",
+    "notify_on_guard_block": true,
     "notify_on_drift": false,
     "notify_on_failure": false,
     "log_silent_events": true
@@ -96,6 +98,12 @@
     "timeout_watch_notify": false,
     "timeout_log_only": true,
     "cooldown_seconds": 30
+  },
+  "guard_mode": {
+    "_comment": "When enabled, the PreToolUse hook DENIES dangerous operations before they run (emits permissionDecision=deny back to Claude Code). OFF by default. Only action 'deny' is currently wired. min_risk gates which ops are guarded — only those at/above this risk level (极高 > 高 > 中). Whether a block also pushes a Watch notification is controlled by notification_policy.notify_on_guard_block.",
+    "enabled": false,
+    "action": "deny",
+    "min_risk": "极高"
   },
   "persona": {
     "enabled": true,

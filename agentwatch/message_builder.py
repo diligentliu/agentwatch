@@ -12,6 +12,7 @@ TITLE_MAP = {
     "permission_required": "需要权限",
     "attention_required": "Agent 需要你处理",
     "task_done": "任务完成",
+    "guard_blocked": "已拦截高风险操作",
     "danger": "高风险操作",
     "drift": "可能跑偏",
     "failure": "可能卡住",
@@ -66,6 +67,9 @@ def _build_body(
 
     if event_type == "task_done":
         return _body_done(parsed)
+
+    if event_type == "guard_blocked":
+        return _body_guard_blocked(danger_info)
 
     if event_type == "danger":
         return _body_danger(danger_info)
@@ -128,6 +132,18 @@ def _body_done(parsed: dict[str, Any] | None) -> str:
     raw = parsed or {}
     stop_reason = raw.get("raw_event", {}).get("reason", "") or "当前步骤已结束"
     return f"Claude Code 当前步骤已结束：{stop_reason}\n风险：低\n建议：回电脑验收或给下一步指示"
+
+
+def _body_guard_blocked(danger_info: dict[str, Any] | None) -> str:
+    """Body for guard_blocked — guard mode denied a dangerous op before it ran."""
+    if not danger_info:
+        return "AgentWatch 已拦截一个高风险操作。\n风险：极高\n建议：如确需执行，请回电脑手动操作。"
+    risk = danger_info.get("risk", "极高")
+    kws = ", ".join(danger_info.get("matched_keywords", [])[:3]) or "危险操作"
+    op = f"Agent 试图执行涉及 {kws} 的操作，已被 guard 拦截"
+    if len(op) > 80:
+        op = op[:77] + "..."
+    return f"{op}\n风险：{risk}\n建议：如确需执行，请回电脑手动操作。"
 
 
 def _body_danger(danger_info: dict[str, Any] | None) -> str:
