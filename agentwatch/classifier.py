@@ -25,6 +25,20 @@ _ATTENTION_KEYWORDS_ZH = {
     "注意", "提醒", "需要处理", "需要介入",
 }
 
+# Structured routing for the Notification hook's `notification_type` field
+# (current Claude Code always sends it). Only types that need the user to act
+# AND would be missed while away get pushed; the rest are logged as `info`.
+# `permission_prompt` maps to info because PermissionRequest already covers it
+# with richer payload — routing it here would duplicate that push.
+_NOTIFICATION_TYPE_MAP = {
+    "permission_prompt": "info",
+    "idle_prompt": "attention_required",
+    "elicitation_dialog": "attention_required",
+    "auth_success": "info",
+    "elicitation_complete": "info",
+    "elicitation_response": "info",
+}
+
 
 def _scan_notification_text(raw_text: str) -> str:
     """Scan Notification hook text for permission / attention keywords.
@@ -78,6 +92,14 @@ def classify(parsed: dict[str, Any]) -> str:
         return "permission_denied"
 
     if event_name == "Notification":
+        raw = parsed.get("raw_event", {}) or {}
+        ntype = raw.get("notification_type", "")
+        if ntype:
+            # Known field → structured routing. Unknown value stays actionable
+            # rather than being silently dropped.
+            return _NOTIFICATION_TYPE_MAP.get(ntype, "attention_required")
+        # Field absent (older Claude Code / non-standard payload) → fall back to
+        # the keyword scan, the only signal available without the typed field.
         raw_text = parsed.get("raw_text", "")
         return _scan_notification_text(raw_text)
 

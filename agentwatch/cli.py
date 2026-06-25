@@ -316,7 +316,6 @@ def cmd_hook(event_name: str) -> None:
             "notified": notified,
             "notification_mode": notification_mode,
             "source": source,
-            "persona_theme": (config.get("persona", {}) or {}).get("theme", "off") if (config.get("persona", {}) or {}).get("enabled") else "off",
             "raw_event": raw or {},
         }
         append_event(log_entry)
@@ -1157,7 +1156,7 @@ def cmd_pending_check(args: argparse.Namespace) -> None:
     tool_name = action.get("tool_name", "")
 
     if timeout_notify:
-        # User has opted in to timeout → push permission_required (respects persona).
+        # User has opted in to timeout → push permission_required.
         etype = "permission_required"
         source = "pending_pretooluse_timeout"
         msg = build_message(etype, extra_summary=summary, config=config)
@@ -1198,106 +1197,6 @@ def cmd_pending_check(args: argparse.Namespace) -> None:
     raise SystemExit(0)
 
 
-from agentwatch.persona import get_persona_config, theme_display_name, valid_themes, apply_persona as _apply_persona
-
-# ---------------------------------------------------------------------------
-# subcommand — persona
-# ---------------------------------------------------------------------------
-
-_VALID_THEMES = valid_themes()
-
-
-def _write_persona_config(theme: str) -> None:
-    """Write persona config into config.json, preserving all other fields."""
-    if not CONFIG_FILE.exists():
-        init_config()
-    config = load_config()
-    pc = get_persona_config(config)
-    pc["enabled"] = theme != "off"
-    pc["theme"] = theme
-    config["persona"] = pc
-    with open(CONFIG_FILE, "w", encoding="utf-8") as fh:
-        json.dump(config, fh, ensure_ascii=False, indent=2)
-
-
-def cmd_persona_show() -> None:
-    """Display current persona configuration."""
-    print()
-    print(f"{_ansi('bold')}{_ansi('cyan')}AgentWatch Persona{_ansi('reset')}")
-    print()
-    if not CONFIG_FILE.exists():
-        print("  No config.json — run 'agentwatch init' first.")
-        return
-    config = load_config()
-    pc = get_persona_config(config)
-    theme = pc.get("theme", "off")
-    enabled = pc.get("enabled", False)
-    display = theme_display_name(theme) if enabled else "Off"
-    print(f"  Persona:  {display}")
-    if enabled and theme != "off":
-        print(f"  Theme:    {theme}")
-    print("  Available themes:")
-    for t in _VALID_THEMES:
-        marker = " ←" if t == theme and enabled else ""
-        name = theme_display_name(t)
-        print(f"    {name}{marker}")
-    print()
-
-
-def cmd_persona_set(theme: str) -> None:
-    """Set the persona theme."""
-    if theme not in _VALID_THEMES:
-        print(f"{_ansi('red')}Invalid theme:{_ansi('reset')} {theme}")
-        print(f"  Valid themes: {', '.join(_VALID_THEMES)}")
-        raise SystemExit(1)
-    _write_persona_config(theme)
-    name = theme_display_name(theme)
-    print(f"{_ansi('green')}Persona theme updated:{_ansi('reset')} {name}")
-
-
-def cmd_persona_off() -> None:
-    """Turn off persona (use default messages)."""
-    _write_persona_config("off")
-    print(f"{_ansi('green')}Persona disabled.{_ansi('reset')} Using default notification text.")
-
-
-def cmd_persona_test(event_type: str) -> None:
-    """Preview persona text for a specific event type (no Bark push)."""
-    print()
-    print(f"{_ansi('bold')}{_ansi('cyan')}AgentWatch Persona Preview{_ansi('reset')}")
-    print()
-
-    if not CONFIG_FILE.exists():
-        print("  No config.json — run 'agentwatch init' first.")
-        return
-
-    config = load_config()
-    pc = get_persona_config(config)
-    theme = pc.get("theme", "off")
-    name = theme_display_name(theme)
-
-    print(f"  Persona:  {name}")
-    print(f"  Event:    {event_type}")
-    print()
-
-    from agentwatch.message_builder import TITLE_MAP
-    std_title = TITLE_MAP.get(event_type, "AgentWatch 提醒")
-    std_body = "标准文案（非 persona）"
-    persona_title, persona_body = _apply_persona(event_type, std_title, std_body, config)
-
-    if persona_title == std_title and persona_body == std_body:
-        print(f"  {_ansi('yellow')}No persona template for this event type.{_ansi('reset')}")
-        print(f"  Would use standard message.")
-    else:
-        print(f"  {_ansi('bold')}Title:{_ansi('reset')} {persona_title}")
-        print(f"  {_ansi('bold')}Body:{_ansi('reset')}")
-        for line in persona_body.split("\n"):
-            print(f"    {line}")
-    print()
-    print("  (No notification was sent — this is a preview only.)")
-    print()
-
-
 # ---------------------------------------------------------------------------
 # argument parsing
 # ---------------------------------------------------------------------------
@@ -1334,19 +1233,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     config_sub.add_parser("show", help="Show current Bark configuration")
     config_sub.add_parser("test", help="Send a Bark test notification")
-
-    # persona
-    p_persona = sub.add_parser("persona", help="Manage notification persona themes")
-    persona_sub = p_persona.add_subparsers(dest="persona_cmd")
-
-    persona_sub.add_parser("show", help="Show current persona theme")
-    persona_sub.add_parser("off", help="Disable persona (use default messages)")
-
-    p_set = persona_sub.add_parser("set", help="Set persona theme")
-    p_set.add_argument("theme", choices=["boss", "heir_male", "heir_female", "emperor", "palace"])
-
-    p_test = persona_sub.add_parser("test", help="Preview persona text without pushing")
-    p_test.add_argument("event", choices=["permission", "done", "danger", "drift", "failure"])
 
     # away
     p_away = sub.add_parser("away", help="Toggle Away mode (suppress normal pushes, keep critical)")
@@ -1416,25 +1302,6 @@ def main() -> None:
             cmd_config_test()
         else:
             parser.parse_args(["config", "--help"])
-    elif args.command == "persona":
-        if args.persona_cmd == "show":
-            cmd_persona_show()
-        elif args.persona_cmd == "set":
-            cmd_persona_set(args.theme)
-        elif args.persona_cmd == "off":
-            cmd_persona_off()
-        elif args.persona_cmd == "test":
-            # Map short event names to internal event_types.
-            event_map = {
-                "permission": "permission_required",
-                "done": "task_done",
-                "danger": "danger",
-                "drift": "drift",
-                "failure": "failure",
-            }
-            cmd_persona_test(event_map.get(args.event, args.event))
-        else:
-            parser.parse_args(["persona", "--help"])
     elif args.command == "away":
         cmd_away(args)
     elif args.command == "hook":

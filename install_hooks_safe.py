@@ -16,6 +16,14 @@ SETTINGS = Path.home() / ".claude" / "settings.json"
 EVENTS = ["PreToolUse", "PostToolUse", "Notification", "Stop",
           "PermissionRequest", "PermissionDenied"]
 
+# Per-event Notification matcher: only fire for types we actually push to the
+# Watch. permission_prompt is intentionally excluded — PermissionRequest covers
+# it with a richer payload, so letting Notification fire too would duplicate the
+# push. Other events take no matcher (fire on everything).
+HOOK_MATCHERS = {
+    "Notification": "idle_prompt|elicitation_dialog",
+}
+
 
 def resolve_python(cli_python: str | None = None) -> str:
     """Resolve the Python interpreter to embed in the hook command.
@@ -30,8 +38,8 @@ def resolve_python(cli_python: str | None = None) -> str:
     return Path(candidate).as_posix()
 
 
-def make_group(event: str, python_bin: str) -> dict:
-    return {
+def make_group(event: str, python_bin: str, matcher: str = "") -> dict:
+    group: dict = {
         "hooks": [
             {
                 "type": "command",
@@ -40,6 +48,9 @@ def make_group(event: str, python_bin: str) -> dict:
             }
         ]
     }
+    if matcher:
+        group["matcher"] = matcher
+    return group
 
 
 def has_agentwatch(entry: dict) -> bool:
@@ -69,23 +80,24 @@ def main() -> None:
     python_bin = resolve_python(args.python)
     print(f"[AgentWatch] Hook interpreter: {python_bin}")
 
-    if not SETTINGS.exists():
-        raise SystemExit(f"settings.json not found at {SETTINGS}")
-
-    ts = time.strftime("%Y%m%d_%H%M%S")
-    backup = SETTINGS.with_name(f"settings.json.agentwatch.bak.{ts}")
-    shutil.copy(SETTINGS, backup)
-    print(f"[AgentWatch] Backed up to: {backup}")
-
-    with open(SETTINGS, "r", encoding="utf-8-sig") as fh:
-        settings = json.load(fh)
+    if SETTINGS.exists():
+        ts = time.strftime("%Y%m%d_%H%M%S")
+        backup = SETTINGS.with_name(f"settings.json.agentwatch.bak.{ts}")
+        shutil.copy(SETTINGS, backup)
+        print(f"[AgentWatch] Backed up to: {backup}")
+        with open(SETTINGS, "r", encoding="utf-8-sig") as fh:
+            settings = json.load(fh)
+    else:
+        SETTINGS.parent.mkdir(parents=True, exist_ok=True)
+        settings = {}
+        print(f"[AgentWatch] No existing settings.json — creating a fresh one at {SETTINGS}")
 
     hooks = settings.get("hooks", {}) or {}
     modified = []
     for event in EVENTS:
         existing = hooks.get(event, []) or []
         cleaned = [e for e in existing if not has_agentwatch(e)]
-        hooks[event] = cleaned + [make_group(event, python_bin)]
+        hooks[event] = cleaned + [make_group(event, python_bin, HOOK_MATCHERS.get(event, ""))]
         modified.append(event)
 
     settings["hooks"] = hooks

@@ -104,10 +104,5 @@
     "enabled": false,
     "action": "deny",
     "min_risk": "极高"
-  },
-  "persona": {
-    "enabled": true,
-    "theme": "boss",
-    "user_role": "总裁"
   }
 }

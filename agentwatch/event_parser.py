@@ -110,3 +110,108 @@ def make_pending_action_id(parsed: dict[str, Any]) -> str:
         return tuid
     from agentwatch.store import new_action_id
     return new_action_id()
+
+
+# Per-tool extraction: which tool_input field carries the "what is happening".
+# Order within each tuple is priority — first non-empty wins.
+_TOOL_DETAIL_FIELDS: dict[str, tuple[str, ...]] = {
+    "Bash":        ("command",),
+    "Edit":        ("file_path",),
+    "MultiEdit":   ("file_path",),
+    "Write":       ("file_path",),
+    "NotebookEdit": ("notebook_path", "file_path"),
+    "Read":        ("file_path",),
+    "Glob":        ("pattern", "path"),
+    "Grep":        ("pattern", "path"),
+    "WebFetch":    ("url",),
+    "WebSearch":   ("query",),
+}
+
+# Fallback field probe order for unknown tools.
+_DETAIL_FALLBACK_FIELDS = ("command", "file_path", "notebook_path", "url", "query", "pattern", "path", "description")
+
+
+def extract_tool_detail(parsed: dict[str, Any], max_len: int = 200) -> dict[str, str]:
+    """Extract the raw 'what is happening' content of a tool call.
+
+    Returns {"tool": <tool name>, "detail": <key field, truncated>}. The detail
+    is the bare command / file path / url — no risk or suggestion framing. When
+    no field matches, detail is "" and the caller shows just the tool name.
+    """
+    tool_name = parsed.get("tool_name", "") or "Unknown"
+    tool_input = parsed.get("tool_input", {}) or {}
+
+    fields = _TOOL_DETAIL_FIELDS.get(tool_name, _DETAIL_FALLBACK_FIELDS)
+    detail = ""
+    for key in fields:
+        val = tool_input.get(key, "")
+        if isinstance(val, str) and val.strip():
+            detail = val.strip()
+            break
+
+    if not detail:
+        for key in _DETAIL_FALLBACK_FIELDS:
+            val = tool_input.get(key, "")
+            if isinstance(val, str) and val.strip():
+                detail = val.strip()
+                break
+
+    if len(detail) > max_len:
+        detail = detail[: max_len - 1] + "…"
+
+    return {"tool": tool_name, "detail": detail}
+
+
+def extract_last_assistant_text(raw: dict[str, Any] | None, max_len: int = 400) -> str:
+    """Read the transcript and return Claude's last assistant text block.
+
+    Reads ``raw["transcript_path"]`` (a JSONL file), scans from the end for the
+    most recent ``type == "assistant"`` message, and returns its last text
+    block. Returns "" on any failure — this runs inside a hook, so it must
+    never raise.
+    """
+    if not raw:
+        return ""
+    transcript_path = raw.get("transcript_path", "") or ""
+    if not transcript_path:
+        return ""
+
+    try:
+        import json as _json
+
+        with open(transcript_path, "r", encoding="utf-8") as fh:
+            lines = fh.readlines()
+
+        for line in reversed(lines):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = _json.loads(line)
+            except Exception:
+                continue
+            if obj.get("type") != "assistant":
+                continue
+            msg = obj.get("message", {})
+            if isinstance(msg, str):
+                text = msg.strip()
+            elif isinstance(msg, dict):
+                content = msg.get("content", [])
+                text = ""
+                if isinstance(content, str):
+                    text = content.strip()
+                elif isinstance(content, list):
+                    for block in reversed(content):
+                        if isinstance(block, dict) and block.get("type") == "text":
+                            text = (block.get("text", "") or "").strip()
+                            if text:
+                                break
+            else:
+                text = ""
+            if text:
+                if len(text) > max_len:
+                    text = text[: max_len - 1] + "…"
+                return text
+        return ""
+    except Exception:
+        return ""
