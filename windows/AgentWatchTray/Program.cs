@@ -233,7 +233,7 @@ record AppStatus(
     bool BarkOk, string BarkDisplay, bool HooksInstalled, int HookCount,
     string? TaskName, List<string> AllowedPaths, List<string> ForbiddenPaths,
     List<EventSummary> RecentEvents, string Overall, string NotificationMode,
-    int PendingApprovals, string PersonaTheme, bool TimeoutWatchNotify,
+    int PendingApprovals, bool TimeoutWatchNotify,
     bool VenvOk, string ProjectRoot);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -306,19 +306,6 @@ static class StatusReader
             var np = config["notification_policy"]?.AsObject();
             if (np != null)
                 notificationMode = np["mode"]?.GetValue<string>() ?? "actionable";
-        }
-
-        // --- Persona ---
-        string personaTheme = "off";
-        if (config != null)
-        {
-            var persona = config["persona"]?.AsObject();
-            if (persona != null)
-            {
-                var enabled = persona["enabled"]?.GetValue<bool>() ?? false;
-                var theme = persona["theme"]?.GetValue<string>() ?? "off";
-                personaTheme = enabled ? theme : "off";
-            }
         }
 
         // --- Approval timeout ---
@@ -450,7 +437,7 @@ static class StatusReader
 
         return new AppStatus(barkOk, barkDisplay, hooksInstalled, hookCount,
             taskName, allowed, forbidden, recent, overall, notificationMode,
-            pendingCount, personaTheme, timeoutWatchNotify,
+            pendingCount, timeoutWatchNotify,
             ClisVenvOk(), ProjectPath);
     }
 
@@ -535,7 +522,6 @@ sealed class TrayApp : ApplicationContext
             status.HookCount >= 4 ? "Missing PermissionRequest" : "Missing";
         menu.Items.Add(DisabledItem($"Hooks: {hooksText}"));
         menu.Items.Add(DisabledItem($"Notif Mode: {status.NotificationMode}"));
-        menu.Items.Add(DisabledItem($"Persona: {PersonaDisplayName(status.PersonaTheme)}"));
         menu.Items.Add(DisabledItem($"Approval Timeout Notify: {(status.TimeoutWatchNotify ? "On" : "Off")}"));
 
         var paText = status.PendingApprovals switch
@@ -576,25 +562,6 @@ sealed class TrayApp : ApplicationContext
 
         menu.Items.Add(new ToolStripSeparator());
 
-        // Persona Theme submenu
-        var personaSubmenu = new ToolStripMenuItem("Persona Theme");
-        var themes = new (string Key, string Name)[]
-        {
-            ("off", "Off"), ("boss", "总裁版"), ("heir_male", "少爷版"),
-            ("heir_female", "大小姐版"), ("emperor", "皇上版"), ("palace", "甄嬛版"),
-        };
-        var currentTheme = status.PersonaTheme;
-        foreach (var (key, name) in themes)
-        {
-            var item = personaSubmenu.DropDownItems.Add(name, null,
-                (_, _) => SetPersonaTheme(key, name));
-            if (key == currentTheme)
-                ((ToolStripMenuItem)personaSubmenu.DropDownItems[personaSubmenu.DropDownItems.Count - 1])
-                    .Checked = true;
-        }
-        menu.Items.Add(personaSubmenu);
-        menu.Items.Add(new ToolStripSeparator());
-
         // Actions
         menu.Items.Add(ActionItem("Refresh Status", (_, _) => RefreshUI()));
         menu.Items.Add(ActionItem("Add / Update Bark Key...", (_, _) => UpdateBarkKey()));
@@ -611,8 +578,6 @@ sealed class TrayApp : ApplicationContext
         menu.Items.Add(ActionItem("Test Auto Exec", (_, _) => TestAutoExec()));
 
         menu.Items.Add(new ToolStripSeparator());
-
-        menu.Items.Add(ActionItem("Preview Current Persona", (_, _) => PreviewPersona()));
 
         menu.Items.Add(ActionItem("Setup Python Environment", (_, _) => RunSetup()));
         menu.Items.Add(ActionItem("Install / Update Claude Code Hooks", (_, _) => RunHooksInstall()));
@@ -657,36 +622,6 @@ sealed class TrayApp : ApplicationContext
     }
 
     private void RefreshUI_OnMain() => RebuildMenu();
-
-    // ── Persona ───────────────────────────────────────────────────────────
-
-    private static string PersonaDisplayName(string theme) => theme switch
-    {
-        "off" => "Off", "boss" => "总裁版", "heir_male" => "少爷版",
-        "heir_female" => "大小姐版", "emperor" => "皇上版", "palace" => "甄嬛版",
-        _ => $"Unknown ({theme})",
-    };
-
-    private void SetPersonaTheme(string theme, string name)
-    {
-        _lastResult = $"Setting persona: {name}...";
-        RebuildMenu();
-        var args = theme == "off"
-            ? new[] { "persona", "off" }
-            : new[] { "persona", "set", theme };
-        ThreadPool.QueueUserWorkItem(_ =>
-        {
-            var result = Cli.Run(args, timeoutSec: 10);
-            var ok = result?.exitCode == 0;
-            if (ok)
-                MessageBox.Show($"Persona theme updated: {name}", "Persona Theme Updated",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-            else
-                MessageBox.Show(result?.stderr ?? "Failed to update persona theme.",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            RefreshUI(ok ? $"Persona: {name}" : "Persona update failed.");
-        });
-    }
 
     // ── Menu item factories ──────────────────────────────────────────────
 
@@ -808,21 +743,6 @@ sealed class TrayApp : ApplicationContext
         RunAsync(new[] { "simulate", "permission-denied" }, timeoutSec: 15,
             successMsg: "PermissionDenied simulated (logged only).",
             failMsg: "PermissionDenied test failed -- check logs.");
-    }
-
-    private void PreviewPersona()
-    {
-        ThreadPool.QueueUserWorkItem(_ =>
-        {
-            var r1 = Cli.Run(new[] { "persona", "test", "permission" }, timeoutSec: 10);
-            var r2 = Cli.Run(new[] { "persona", "test", "done" }, timeoutSec: 10);
-            var preview = "Persona Preview\n\n" +
-                          "Permission:\n" + (r1?.stdout ?? "(error)") + "\n\n" +
-                          "Done:\n" + (r2?.stdout ?? "(error)");
-            if (preview.Length > 900) preview = preview[..897] + "...";
-            MessageBox.Show(preview, "Persona Preview",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
-        });
     }
 
     private void TestApprovalPending()

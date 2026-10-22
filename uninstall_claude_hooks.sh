@@ -10,6 +10,16 @@ set -euo pipefail
 SETTINGS_FILE="$HOME/.claude/settings.json"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# --no-backup: skip this script's own backup. Used when install_claude_hooks.sh
+# calls us as a pre-clean step — the installer makes its own backup right after,
+# so a second one here is just noise.
+NO_BACKUP=0
+for arg in "$@"; do
+    case "$arg" in
+        --no-backup) NO_BACKUP=1 ;;
+    esac
+done
+
 # Resolve Python.
 PYTHON_BIN=""
 if [ -f "$SCRIPT_DIR/.venv/bin/python" ]; then
@@ -30,10 +40,14 @@ if [ ! -f "$SETTINGS_FILE" ]; then
     exit 0
 fi
 
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$HOME/.claude/settings.json.agentwatch.bak.uninstall.$TIMESTAMP"
-cp "$SETTINGS_FILE" "$BACKUP_FILE"
-echo "[AgentWatch] Backed up current settings to: $BACKUP_FILE"
+if [ "$NO_BACKUP" -eq 1 ]; then
+    echo "[AgentWatch] Skipping backup (--no-backup; caller will back up)."
+else
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BACKUP_FILE="$HOME/.claude/settings.json.agentwatch.bak.uninstall.$TIMESTAMP"
+    cp "$SETTINGS_FILE" "$BACKUP_FILE"
+    echo "[AgentWatch] Backed up current settings to: $BACKUP_FILE"
+fi
 
 $PYTHON_BIN << PYEOF
 import json, sys
@@ -58,19 +72,22 @@ for event_name in list(hooks.keys()):
             kept.append(entry)
             continue
 
-        # Correct schema format: {"hooks": [{type: "command", command: "..."}]}
-        inner_hooks = entry.get("hooks", [])
-        if isinstance(inner_hooks, list):
+        # Nested schema: {"hooks": [{type: "command", command: "..."}], ...}.
+        # Only treat as nested when the "hooks" key is actually present — a flat
+        # entry has no such key, and entry.get("hooks", []) would otherwise
+        # masquerade as an empty nested group and get dropped.
+        if "hooks" in entry and isinstance(entry["hooks"], list):
+            inner_hooks = entry["hooks"]
             filtered = [h for h in inner_hooks if not (isinstance(h, dict) and "agentwatch" in h.get("command", ""))]
             if len(filtered) < len(inner_hooks):
                 removed.append(f"{event_name} (nested)")
             if filtered:
                 entry["hooks"] = filtered
                 kept.append(entry)
-            # else: drop this matcher group entirely
+            # else: the group held only agentwatch hooks → drop it entirely.
             continue
 
-        # Legacy flat format: {"command": "...agentwatch..."}
+        # Legacy flat format: {"command": "...agentwatch..."}.
         if "agentwatch" in entry.get("command", ""):
             removed.append(f"{event_name} (legacy)")
             continue
@@ -79,7 +96,9 @@ for event_name in list(hooks.keys()):
 
     if kept:
         hooks[event_name] = kept
-    else:
+    elif any(r.startswith(f"{event_name} ") for r in removed):
+        # Only drop the event key when we actually removed an agentwatch hook
+        # from it and nothing else remained — never touch an event we left alone.
         del hooks[event_name]
 
 if removed:
@@ -99,8 +118,14 @@ if not hooks:
 
 PYEOF
 
-echo ""
-echo "[AgentWatch] Uninstall complete."
-echo "[AgentWatch] To restore from an earlier backup: cp <backup_file> $SETTINGS_FILE"
-echo "[AgentWatch] Backups available:"
-ls -la "$HOME/.claude/settings.json.agentwatch.bak."* 2>/dev/null || echo "  (none found)"
+if [ "$NO_BACKUP" -eq 1 ]; then
+    # Pre-clean step for the installer — stay quiet so it doesn't look like a
+    # standalone uninstall finished mid-install.
+    echo "[AgentWatch] Pre-clean done (removed any stale AgentWatch hooks)."
+else
+    echo ""
+    echo "[AgentWatch] Uninstall complete."
+    echo "[AgentWatch] To restore from an earlier backup: cp <backup_file> $SETTINGS_FILE"
+    echo "[AgentWatch] Backups available:"
+    ls -la "$HOME/.claude/settings.json.agentwatch.bak."* 2>/dev/null || echo "  (none found)"
+fi

@@ -139,7 +139,6 @@ struct AppStatus {
     var recentEvents: [EventSummary]
     var overall: OverallStatus
     var notificationMode: String   // "actionable" or "verbose"
-    var personaTheme: String       // "off", "boss", "heir_male", ...
     var timeoutWatchNotify: Bool   // approval_detection.timeout_watch_notify
 }
 
@@ -174,14 +173,6 @@ func readAppStatus() -> AppStatus {
     var notificationMode = "actionable"
     if let np = configDict?["notification_policy"] as? [String: Any] {
         notificationMode = np["mode"] as? String ?? "actionable"
-    }
-
-    // --- Persona theme ---
-    var personaTheme = "off"
-    if let pers = configDict?["persona"] as? [String: Any] {
-        let enabled = pers["enabled"] as? Bool ?? false
-        let theme = pers["theme"] as? String ?? "off"
-        personaTheme = enabled ? theme : "off"
     }
 
     // --- Approval timeout notify ---
@@ -281,7 +272,6 @@ func readAppStatus() -> AppStatus {
         recentEvents: recent,
         overall: overall,
         notificationMode: notificationMode,
-        personaTheme: personaTheme,
         timeoutWatchNotify: timeoutWatchNotify
     )
 }
@@ -318,7 +308,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         addDisabled(menu, "Bark: \(status.barkOk ? "✓ OK" : "✗ \(status.barkDisplay)")")
         addDisabled(menu, "Hooks: \(status.hooksInstalled ? "✓ Installed" : (status.hookCount >= 4 ? "✗ Missing PermissionRequest" : "✗ Missing"))")
         addDisabled(menu, "Notif Mode: \(status.notificationMode)")
-        addDisabled(menu, "Persona: \(personaDisplayName(status.personaTheme))")
         addDisabled(menu, "Approval Timeout Notify: \(status.timeoutWatchNotify ? "On" : "Off")")
         if let task = status.taskName {
             addDisabled(menu, "Task: \(task)")
@@ -345,25 +334,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        menu.addItem(.separator())
-
-        // ── Persona Theme ──
-        let personaMenu = NSMenuItem(title: "Persona Theme", action: nil, keyEquivalent: "")
-        let personaSubmenu = NSMenu(title: "Persona Theme")
-        let themes: [(String, String)] = [
-            ("off", "Off"), ("boss", "总裁版"), ("heir_male", "少爷版"),
-            ("heir_female", "大小姐版"), ("emperor", "皇上版"), ("palace", "甄嬛版"),
-        ]
-        let currentTheme = status.personaTheme
-        for (key, name) in themes {
-            let item = NSMenuItem(title: name, action: #selector(selectPersonaTheme(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = key
-            item.state = (key == currentTheme) ? .on : .off
-            personaSubmenu.addItem(item)
-        }
-        personaMenu.submenu = personaSubmenu
-        menu.addItem(personaMenu)
         menu.addItem(.separator())
 
         // ── Actions ──
@@ -425,45 +395,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case "possible_permission_wait":   return "⏳"
         case "permission_denied":          return "✕"
         default:                           return "·"
-        }
-    }
-
-    // ── Persona helpers ─────────────────────────────────────────────────
-
-    private func personaDisplayName(_ theme: String) -> String {
-        switch theme {
-        case "off":         return "Off"
-        case "boss":        return "总裁版"
-        case "heir_male":   return "少爷版"
-        case "heir_female": return "大小姐版"
-        case "emperor":     return "皇上版"
-        case "palace":      return "甄嬛版"
-        default:            return theme
-        }
-    }
-
-    @objc private func selectPersonaTheme(_ sender: NSMenuItem) {
-        guard let theme = sender.representedObject as? String else { return }
-        let name = personaDisplayName(theme)
-        lastActionResult = "Setting persona: \(name)..."
-        rebuildMenu()
-        DispatchQueue.global().async { [weak self] in
-            let args: [String]
-            if theme == "off" {
-                args = ["persona", "off"]
-            } else {
-                args = ["persona", "set", theme]
-            }
-            let result = callAgentWatch(args, timeoutSec: 10.0)
-            DispatchQueue.main.async {
-                let ok = (result?.exitCode == 0)
-                let msg = ok ? "Persona theme updated: \(name)" : "Persona update failed."
-                if ok {
-                    // Brief feedback via last result; full status already refreshed below.
-                    self?.showInfoDialog("Persona Theme Updated", message: msg)
-                }
-                self?.refreshUI(with: msg)
-            }
         }
     }
 

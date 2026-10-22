@@ -20,7 +20,7 @@ AgentWatch lets you walk away from your Mac (or Windows PC) while Claude Code wo
 8. [Bark Setup](#bark-setup)
 9. [Claude Code Hooks](#claude-code-hooks)
 10. [Notification Policy](#notification-policy)
-11. [Persona Themes](#persona-themes)
+11. [Notification Content](#notification-content)
 12. [macOS Menu Bar App](#macos-menu-bar-app)
 13. [Windows Tray App](#windows-tray-app)
 14. [Common Commands](#common-commands)
@@ -53,7 +53,6 @@ Claude Code is powerful — but you don't want to watch every command. You only 
 | No subscription | ✅ | ✅ | ❌ (requires paid plan) |
 | Filters noise automatically | ✅ | ❌ | ❌ |
 | Watch vibration + event card | ✅ | ❌ | ❌ |
-| Persona themes | ✅ | ❌ | ❌ |
 | macOS menu bar + Windows tray | ✅ | ❌ | ❌ |
 | Open source | ✅ | N/A | N/A |
 
@@ -63,11 +62,11 @@ Claude Code is powerful — but you don't want to watch every command. You only 
 
 *(Coming soon via GitHub Releases — screenshots will be added here.)*
 
-**macOS menu bar app**: Status at a glance — Bark OK, hooks installed, persona theme, recent events.
+**macOS menu bar app**: Status at a glance — Bark OK, hooks installed, notification mode, recent events.
 
-**Windows tray app**: Right-click for full status, persona switching, test push, task boundaries.
+**Windows tray app**: Right-click for full status, test push, task boundaries.
 
-**Apple Watch / Android band notification**: Title + risk level + suggested action in a compact card format.
+**Apple Watch / Android band notification**: Title (event type + tool) and the raw command / path / reply in a compact card format.
 
 **Phone notification**: Same card syncs to Notification Center.
 
@@ -85,7 +84,6 @@ Claude Code is powerful — but you don't want to watch every command. You only 
 | **Actionable notification mode** | Only pushes when user interaction is genuinely needed |
 | **Stop hook** | Task completion reminders when Claude stops |
 | **PreToolUse timeout log-only** | Detects possible permission waits without false alerts from slow builds |
-| **Persona Themes** | Six fun notification styles |
 | **Task boundaries** | Set allowed/forbidden paths; drift is logged silently, not pushed |
 | **Local-first** | No extra LLM calls, no analytics, no cloud beyond Bark |
 
@@ -96,17 +94,6 @@ Claude Code is powerful — but you don't want to watch every command. You only 
 | macOS | Menu bar app (no Dock icon) | Swift + AppKit |
 | Windows | System tray app | C# / .NET 8 WinForms |
 | CLI | Cross-platform terminal | Python 3.10+, zero extra deps |
-
-### Persona Themes
-
-| Theme | Key | Style |
-|-------|-----|-------|
-| Off | `off` | Default AgentWatch text |
-| 总裁版 | `boss` | Dramatic CEO alerts |
-| 少爷版 | `heir_male` | Estate manager reports |
-| 大小姐版 | `heir_female` | Estate manager reports |
-| 皇上版 | `emperor` | Imperial court style |
-| 甄嬛版 | `palace` | Palace intrigue style |
 
 ---
 
@@ -123,7 +110,7 @@ PermissionRequest ──▶     ✓ PUSH to Watch (reliable)
 PermissionDenied  ──▶     log only (no push)
                            │
                            ├── notification policy (actionable by default)
-                           ├── persona message builder
+                           ├── message builder (raw event content)
                            ├── Bark push ──▶ phone ──▶ Apple Watch / Android band
                            └── logs/agentwatch_events.jsonl
 ```
@@ -378,34 +365,22 @@ To enable PreToolUse timeout push (accepts false-positive risk):
 
 ---
 
-## Persona Themes
+## Notification Content
 
-Switch notification style from the GUI or CLI. No restart needed. Six themes available:
+Every notification shows the **raw "what is happening"** — no risk levels or canned suggestions. The title names the event type (plus the tool, when known) so a glance is enough; the body carries the actual command, file path, URL, or Claude's last reply.
 
-| Theme | Key | Example Notification |
-|-------|-----|---------------------|
-| Off | `off` | "需要权限 / Agent 正在等待你允许操作" |
-| 总裁版 | `boss` | "总裁快签字 / 总裁！没有您的签字，整个项目组..." |
-| 少爷版 | `heir_male` | "待您过目 / 少爷，这一步管家不敢擅自处理..." |
-| 大小姐版 | `heir_female` | "待您过目 / 大小姐，这一步管家不敢擅自处理..." |
-| 皇上版 | `emperor` | "奏请御批 / 皇上，奴才这儿有道折子..." |
-| 甄嬛版 | `palace` | "请主子示下 / 主子，这一步内务府不敢擅自做主..." |
+| Event type | Title | Body |
+|------------|-------|------|
+| Permission required | 权限请求 · Bash | the actual command, e.g. `rm -rf build/` |
+| Attention required | 需要处理 | Claude's notification message |
+| Task done | 任务完成 | Claude's last reply, read from the transcript |
+| Guard blocked | 已拦截 · Bash | the blocked command |
+| High risk | 高风险 · Bash | the risky command |
+| Drift | 可能跑偏 · 原任务 X | the boundary that was touched |
+| Consecutive failures | 连续失败 · N 次 | the tool content that failed |
+| Permission denied | 已拒绝 · Bash | the command you rejected |
 
-**CLI:**
-```bash
-agentwatch persona show               # show current theme
-agentwatch persona set boss           # switch to 总裁版
-agentwatch persona set emperor        # switch to 皇上版
-agentwatch persona off                # disable persona
-agentwatch persona test permission    # preview (no push)
-agentwatch persona test done          # preview (no push)
-```
-
-**macOS:** `● AW` → `Persona Theme` → choose theme
-
-**Windows:** Right-click tray icon → `Persona Theme` → choose theme
-
-Personas only change notification **wording** — the notification **policy** (which events push) is unchanged.
+Risk / drift / failure detection still decides **whether** to push (see [Notification Policy](#notification-policy)); it just no longer dictates the wording.
 
 ---
 
@@ -427,7 +402,6 @@ open build/AgentWatch.app        # launch
 |--------|-------------|
 | Bark config | Add / update Bark key, show current config (key redacted) |
 | Test Push | Send a test notification to verify the link |
-| Persona Theme | Switch between all 6 themes with a checkmark |
 | Recent Events | Last 5 non-info events with icons, timestamps, and notified/logged tags |
 | Hook status | Shows if all 6 hooks are installed; warns if PermissionRequest is missing |
 | Approval Timeout Notify | Shows whether PreToolUse timeout push is On or Off |
@@ -455,8 +429,7 @@ build\windows\AgentWatchTray\AgentWatchTray.exe
 Same as macOS menu bar app, plus:
 - **Setup Python Environment** — one-click .venv setup
 - **Install / Update Claude Code Hooks** — one-click hooks installation (with confirmation)
-- **Preview Current Persona** — see what your notifications will look like without sending a push
-- **Test Permission Request / Denied** — simulate specific hook events
+- **Test Permission Request / Denied / Approval Pending / Auto Exec** — simulate specific hook events
 
 ---
 
@@ -471,10 +444,6 @@ Same as macOS menu bar app, plus:
 | `agentwatch config bark` | Set Bark key (accepts full URL or bare key) |
 | `agentwatch config show` | Show Bark config (key is redacted) |
 | `agentwatch config test` | Send a test notification |
-| `agentwatch persona show` | Show current persona theme |
-| `agentwatch persona set <theme>` | Switch persona (boss/emperor/palace/heir_male/heir_female) |
-| `agentwatch persona off` | Disable persona, use default text |
-| `agentwatch persona test <event>` | Preview persona text for an event (no push) |
 | `agentwatch simulate permission-request` | Simulate "Allow this command?" → should push |
 | `agentwatch simulate permission-denied` | Simulate user denying → should log only |
 | `agentwatch simulate done` | Simulate task complete → should push |
@@ -500,7 +469,7 @@ agentwatch config test
 
 # 3. Simulate a real permission dialog
 agentwatch simulate permission-request
-# Expected: Watch notification with your current persona theme
+# Expected: Watch notification "权限请求 · Bash" with the command in the body
 
 # 4. Simulate task completion
 agentwatch simulate done
@@ -577,7 +546,6 @@ See [SECURITY.md](SECURITY.md) for full details.
 - [ ] Away mode — auto-detect when you step away and enable aggressive monitoring
 - [ ] Session summary notifications — what was accomplished
 - [ ] Guard mode — auto-block dangerous operations before execution
-- [ ] More persona themes
 - [ ] Pushover / ntfy notification backend support
 - [ ] Native iOS / watchOS actions (approve/deny from wrist)
 
