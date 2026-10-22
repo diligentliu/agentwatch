@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.9.0 (2026-10-22)
+
+### Added
+- Native Codex hooks with safe install and uninstall scripts
+- Task submission, permission request, tool failure, and task completion notifications for Codex
+- Tag-triggered macOS and Windows builds that publish downloadable GitHub Releases
+
+### Changed
+- GitHub release downloads now use the `diligentliu/agentwatch` repository
+
 ## v0.8.0 (2026-06-03)
 
 ### Added

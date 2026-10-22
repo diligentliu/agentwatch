@@ -143,8 +143,8 @@ PermissionDenied  ──▶     仅记录（不推送）
 
 | 平台 | 下载 | 大小 |
 |------|------|------|
-| macOS (Apple Silicon) | [AgentWatch-macOS-arm64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.8.0/AgentWatch-macOS-arm64.zip) | 42 KB |
-| Windows (x64) | [AgentWatch-Windows-x64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip) | 96 KB |
+| macOS (Apple Silicon) | [AgentWatch-macOS-arm64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.9.0/AgentWatch-macOS-arm64.zip) | 42 KB |
+| Windows (x64) | [AgentWatch-Windows-x64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.9.0/AgentWatch-Windows-x64.zip) | 96 KB |
 
 下载解压后双击运行即可。全程不需要打开终端或 PowerShell：
 
@@ -232,7 +232,7 @@ open build/AgentWatch.app     # 运行在菜单栏，无 Dock 图标
 
 **推荐方式（下载即用）：**
 
-1. 下载 [AgentWatch-Windows-x64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip)
+1. 下载 [AgentWatch-Windows-x64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.9.0/AgentWatch-Windows-x64.zip)
 2. 解压到任意位置
 3. 双击 `AgentWatchTray.exe`
 4. 如果弹出选择目录，选你的 AgentWatch 项目目录

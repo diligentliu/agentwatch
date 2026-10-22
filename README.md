@@ -138,8 +138,8 @@ No GUI apps needed. The core functionality (hooks → watch notifications) works
 
 | Platform | Download | Size |
 |----------|----------|------|
-| macOS (Apple Silicon) | [AgentWatch-macOS-arm64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.8.0/AgentWatch-macOS-arm64.zip) | 42 KB |
-| Windows (x64) | [AgentWatch-Windows-x64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip) | 96 KB |
+| macOS (Apple Silicon) | [AgentWatch-macOS-arm64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.9.0/AgentWatch-macOS-arm64.zip) | 42 KB |
+| Windows (x64) | [AgentWatch-Windows-x64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.9.0/AgentWatch-Windows-x64.zip) | 96 KB |
 
 Download, unzip, double-click. No terminal needed.
 
@@ -225,7 +225,7 @@ Double-click alternatives (no terminal needed):
 
 **Recommended (download + run):**
 
-1. Download [AgentWatch-Windows-x64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip)
+1. Download [AgentWatch-Windows-x64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.9.0/AgentWatch-Windows-x64.zip)
 2. Unzip anywhere
 3. Double-click `AgentWatchTray.exe`
 4. If asked, select your AgentWatch project directory (e.g. `C:\Users\dongx\agentwatch`)
