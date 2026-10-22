@@ -68,4 +68,5 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             release-assets/AgentWatch-macOS-arm64.zip \
             release-assets/AgentWatch-Windows-x64.zip \
+            --repo "$GITHUB_REPOSITORY" \
             --generate-notes
