@@ -54,6 +54,10 @@ build\windows\AgentWatchTray\AgentWatchTray.exe
 
 Requires .NET 8 SDK.
 
+## Release Builds
+
+Pushing any new Git tag starts the macOS and Windows build jobs. When both builds succeed, GitHub Actions creates a release for that tag and attaches `AgentWatch-macOS-arm64.zip` and `AgentWatch-Windows-x64.zip`.
+
 ## Pull Request Guidelines
 
 - Do **not** include `config.json`, `logs/`, `.venv/`, `diagnostics/`, or `build/` output.
