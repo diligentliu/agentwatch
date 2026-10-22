@@ -9,7 +9,7 @@ from agentwatch.utils import flatten_strings
 
 
 def parse_event(raw: dict[str, Any] | None, event_name: str) -> dict[str, Any]:
-    """Turn a raw Claude Code hook payload into an AgentWatch internal event dict.
+    """Turn a Claude Code or Codex hook payload into an AgentWatch event dict.
 
     Parameters
     ----------
@@ -38,6 +38,11 @@ def parse_event(raw: dict[str, Any] | None, event_name: str) -> dict[str, Any]:
     if raw is None:
         return parsed
 
+    # Codex includes the event name in its payload and uses a few different
+    # field names from Claude Code. Honour the explicit hook name when present.
+    event_name = raw.get("hook_event_name", event_name) or event_name
+    parsed["event_name"] = event_name
+
     # Flatten all strings for keyword matching.
     all_strings = flatten_strings(raw)
     parsed["raw_text"] = " ".join(all_strings)
@@ -60,7 +65,11 @@ def parse_event(raw: dict[str, Any] | None, event_name: str) -> dict[str, Any]:
     # Detect error indicators for PostToolUse.
     error_keywords = {"error", "failed", "exception", "traceback", "non-zero", "exit code", "traceback", "stack trace"}
     raw_lower = parsed["raw_text"].lower()
-    if any(kw in raw_lower for kw in error_keywords):
+    output = raw.get("tool_response", "")
+    if output:
+        parsed["raw_text"] += " " + " ".join(flatten_strings(output))
+        raw_lower = parsed["raw_text"].lower()
+    if raw.get("is_error") or any(kw in raw_lower for kw in error_keywords):
         parsed["has_error"] = True
 
     return parsed
@@ -172,6 +181,10 @@ def extract_last_assistant_text(raw: dict[str, Any] | None, max_len: int = 400) 
     """
     if not raw:
         return ""
+    direct = raw.get("last_assistant_message", "")
+    if isinstance(direct, str) and direct.strip():
+        text = direct.strip()
+        return text[: max_len - 1] + "…" if len(text) > max_len else text
     transcript_path = raw.get("transcript_path", "") or ""
     if not transcript_path:
         return ""

@@ -1,8 +1,8 @@
 # AgentWatch
 
-**Apple Watch / Android notifications for Claude Code and AI agent workflows.**
+**Apple Watch / Android notifications for Claude Code and Codex workflows.**
 
-AgentWatch lets you walk away from your Mac (or Windows PC) while Claude Code works. When the agent needs your approval, needs attention, or finishes a task — your wrist vibrates with a short event card. Works with Apple Watch, Android phones, and connected bands (Huawei/Xiaomi/Samsung bands that sync phone notifications).
+AgentWatch lets you walk away from your Mac (or Windows PC) while Claude Code or Codex works. When the agent starts a task, needs your approval, or finishes — your wrist vibrates with a short event card. Works with Apple Watch, Android phones, and connected bands (Huawei/Xiaomi/Samsung bands that sync phone notifications).
 
 > 中文用户请查看 [README_CN.md](README_CN.md)
 
@@ -19,23 +19,24 @@ AgentWatch lets you walk away from your Mac (or Windows PC) while Claude Code wo
 7. [Quick Start: Windows](#quick-start-windows)
 8. [Bark Setup](#bark-setup)
 9. [Claude Code Hooks](#claude-code-hooks)
-10. [Notification Policy](#notification-policy)
-11. [Notification Content](#notification-content)
-12. [macOS Menu Bar App](#macos-menu-bar-app)
-13. [Windows Tray App](#windows-tray-app)
-14. [Common Commands](#common-commands)
-15. [Testing](#testing)
-16. [Troubleshooting](#troubleshooting)
-17. [Privacy & Security](#privacy--security)
-18. [Roadmap](#roadmap)
-19. [License](#license)
-20. [Contributing](#contributing)
+10. [Codex Hooks](#codex-hooks)
+11. [Notification Policy](#notification-policy)
+12. [Notification Content](#notification-content)
+13. [macOS Menu Bar App](#macos-menu-bar-app)
+14. [Windows Tray App](#windows-tray-app)
+15. [Common Commands](#common-commands)
+16. [Testing](#testing)
+17. [Troubleshooting](#troubleshooting)
+18. [Privacy & Security](#privacy--security)
+19. [Roadmap](#roadmap)
+20. [License](#license)
+21. [Contributing](#contributing)
 
 ---
 
 ## Why AgentWatch?
 
-Claude Code is powerful — but you don't want to watch every command. You only need to know when:
+Claude Code and Codex are powerful — but you don't want to watch every command. You only need to know when:
 - A real "Allow this bash command?" permission dialog appears
 - The agent needs your approval or input
 - A task finishes and needs your review
@@ -43,7 +44,7 @@ Claude Code is powerful — but you don't want to watch every command. You only 
 
 **The problem**: You start a long task, walk away for coffee, come back 20 minutes later and realize Claude Code has been waiting on a permission prompt for 19 of those minutes.
 
-**The solution**: AgentWatch hooks into Claude Code's event system, filters out the noise, and pushes only truly actionable alerts to your wrist. Your watch vibrates → you glance → you know whether to rush back or stay at the coffee machine.
+**The solution**: AgentWatch hooks into each agent's event system, filters out the noise, and pushes task, approval, and completion alerts to your wrist. Your watch vibrates → you glance → you know whether to rush back or stay at the coffee machine.
 
 ### What separates AgentWatch from other solutions?
 
@@ -129,7 +130,7 @@ You have three options, from simplest to most advanced:
 
 ### Option 1 — CLI Only (fastest)
 
-No GUI apps needed. The core functionality (hooks → watch notifications) works entirely via CLI. Install Python, clone the repo, `pip install -e .`, configure Bark, install hooks. Done. See [Quick Start](#quick-start-macos).
+No GUI apps needed. The core functionality (hooks → watch notifications) works entirely via CLI. Install Python, clone the repo, `pip install -e .`, configure Bark, then install Claude Code or Codex hooks. Done. See [Quick Start](#quick-start-macos).
 
 **This is all you need for notifications to work.** The GUI apps are convenience layers.
 
@@ -137,8 +138,8 @@ No GUI apps needed. The core functionality (hooks → watch notifications) works
 
 | Platform | Download | Size |
 |----------|----------|------|
-| macOS (Apple Silicon) | [AgentWatch-macOS-arm64.zip](https://github.com/dongxutang918-afk/agentwatch/releases/download/v0.8.0/AgentWatch-macOS-arm64.zip) | 42 KB |
-| Windows (x64) | [AgentWatch-Windows-x64.zip](https://github.com/dongxutang918-afk/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip) | 96 KB |
+| macOS (Apple Silicon) | [AgentWatch-macOS-arm64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.8.0/AgentWatch-macOS-arm64.zip) | 42 KB |
+| Windows (x64) | [AgentWatch-Windows-x64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip) | 96 KB |
 
 Download, unzip, double-click. No terminal needed.
 
@@ -167,14 +168,14 @@ Clone the repo and build the desktop apps yourself with a single command (requir
 ### Prerequisites
 - macOS (Apple Silicon or Intel)
 - Python 3.10+
-- Claude Code (CLI or VS Code extension)
+- Claude Code (CLI or VS Code extension) or Codex
 - iPhone / Android phone with [Bark](https://apps.apple.com/app/bark/id1403753865) installed
 
 ### Install
 
 ```bash
 # Clone
-git clone https://github.com/dongxutang918-afk/agentwatch.git ~/Projects/agentwatch
+git clone https://github.com/diligentliu/agentwatch.git ~/Projects/agentwatch
 cd ~/Projects/agentwatch
 
 # Setup Python environment
@@ -189,8 +190,10 @@ agentwatch init
 agentwatch config bark        # paste your Bark URL or key
 agentwatch config test        # verify notifications reach your watch
 
-# Install Claude Code hooks (manual, one-time)
+# Install hooks for the agent you use (manual, one-time)
 bash install_claude_hooks.sh
+# Or, for Codex:
+python install_codex_hooks.py
 
 # Verify
 agentwatch doctor             # should show "Status: Ready"
@@ -215,14 +218,14 @@ Double-click alternatives (no terminal needed):
 ### Prerequisites
 - Windows 10/11
 - Python 3.10+
-- Claude Code (CLI or VS Code extension)
+- Claude Code (CLI or VS Code extension) or Codex
 - Phone with [Bark](https://apps.apple.com/app/bark/id1403753865) installed (iOS/Android)
 
 ### Install
 
 **Recommended (download + run):**
 
-1. Download [AgentWatch-Windows-x64.zip](https://github.com/dongxutang918-afk/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip)
+1. Download [AgentWatch-Windows-x64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip)
 2. Unzip anywhere
 3. Double-click `AgentWatchTray.exe`
 4. If asked, select your AgentWatch project directory (e.g. `C:\Users\dongx\agentwatch`)
@@ -236,7 +239,7 @@ Done. The tray app shows status, and hooks work independently in the background.
 
 ```powershell
 # Clone
-git clone https://github.com/dongxutang918-afk/agentwatch.git
+git clone https://github.com/diligentliu/agentwatch.git
 cd agentwatch
 
 # Setup
@@ -329,9 +332,24 @@ powershell -ExecutionPolicy Bypass -File windows\uninstall_claude_hooks_windows.
 
 ---
 
+## Codex Hooks
+
+Codex uses its native lifecycle hooks in `~/.codex/hooks.json`. The installer backs up the existing file and merges AgentWatch entries without removing other hooks. It registers `UserPromptSubmit`, `PermissionRequest`, `PreToolUse`, `PostToolUse`, and `Stop` to report the incoming task, approval requests, actionable tool events, and Codex's final reply.
+
+```bash
+python install_codex_hooks.py       # install or update
+python uninstall_codex_hooks.py     # remove AgentWatch entries
+```
+
+After installation, open Codex and run `/hooks` to review and trust the AgentWatch hooks. Codex skips new or changed hooks until they are trusted. Task submission and completion notifications are enabled in actionable mode; set `notification_policy.notify_on_task_started` to `false` in `config.json` to silence incoming task notifications.
+
+Codex supplies `last_assistant_message` directly to its `Stop` hook, so the completion notification contains the final answer without needing to read the transcript file.
+
+---
+
 ## Notification Policy
 
-AgentWatch uses **actionable mode** by default — only truly interactive events push to your watch.
+AgentWatch uses **actionable mode** by default — task start/completion and events that need your attention push to your watch.
 
 ### ✅ Pushed to Apple Watch
 
@@ -339,7 +357,8 @@ AgentWatch uses **actionable mode** by default — only truly interactive events
 |-------|------------|---------|
 | Real "Allow this command?" dialog | PermissionRequest | "Claude needs your approval to run: rm -rf build/" |
 | Agent needs your attention | Notification (fallback) | "Claude is waiting for your input" |
-| Task completed | Stop | "Task done, review results" |
+| Task submitted (Codex) | UserPromptSubmit | The submitted task prompt |
+| Task completed | Stop | The agent's final reply |
 
 ### ❌ Logged Only (no watch push)
 
@@ -373,7 +392,8 @@ Every notification shows the **raw "what is happening"** — no risk levels or c
 |------------|-------|------|
 | Permission required | 权限请求 · Bash | the actual command, e.g. `rm -rf build/` |
 | Attention required | 需要处理 | Claude's notification message |
-| Task done | 任务完成 | Claude's last reply, read from the transcript |
+| Task started (Codex) | 收到任务 | The submitted task prompt |
+| Task done | 任务完成 | The agent's final reply |
 | Guard blocked | 已拦截 · Bash | the blocked command |
 | High risk | 高风险 · Bash | the risky command |
 | Drift | 可能跑偏 · 原任务 X | the boundary that was touched |

@@ -156,6 +156,7 @@ def get_notification_policy(config: dict[str, Any]) -> dict[str, Any]:
     npolicy = config.get("notification_policy", {}) or {}
     npolicy.setdefault("mode", "actionable")
     npolicy.setdefault("notify_on_task_done", True)
+    npolicy.setdefault("notify_on_task_started", True)
     npolicy.setdefault("notify_on_guard_block", True)
     npolicy.setdefault("notify_on_interactive_attention", True)
     npolicy.setdefault("notify_on_pretooluse", False)
@@ -170,7 +171,7 @@ def should_send_notification(event_type: str, npolicy: dict[str, Any]) -> bool:
     """Decide whether an event of *event_type* should push to Apple Watch.
 
     In 'actionable' mode (default):
-      - task_done, permission_required, attention_required → push
+      - task_started, task_done, permission_required, attention_required → push
       - danger, drift, failure, info → silent (log only)
 
     In 'verbose' mode:
@@ -193,6 +194,8 @@ def should_send_notification(event_type: str, npolicy: dict[str, Any]) -> bool:
 
     # actionable mode — only push truly interactive events.
     if event_type == "task_done" and npolicy.get("notify_on_task_done", True):
+        return True
+    if event_type == "task_started" and npolicy.get("notify_on_task_started", True):
         return True
     if event_type in ("permission_required", "attention_required") and npolicy.get("notify_on_interactive_attention", True):
         return True

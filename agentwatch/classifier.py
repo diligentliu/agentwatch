@@ -106,6 +106,9 @@ def classify(parsed: dict[str, Any]) -> str:
     if event_name == "Stop":
         return "task_done"
 
+    if event_name == "UserPromptSubmit":
+        return "task_started"
+
     if event_name == "PreToolUse":
         return "pretooluse"
 

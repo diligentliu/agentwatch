@@ -1,8 +1,8 @@
 # AgentWatch
 
-**为 Claude Code 和 AI Agent 工作流打造的提醒工具，支持 Apple Watch / 安卓手机 + 手环/手表。**
+**为 Claude Code 和 Codex 工作流打造的提醒工具，支持 Apple Watch / 安卓手机 + 手环/手表。**
 
-AgentWatch 让你不用一直盯着 Claude Code。只有当 Agent 需要授权、需要你处理或任务完成时，它才通过 Bark 推送通知到你的手机，手腕上的 Apple Watch 或安卓手环（华为/小米/三星等，只需同步手机通知）随之震动并显示简短事件卡片。从此告别"离开 20 分钟回来发现 Agent 卡在权限弹窗等了 19 分钟"的尴尬。
+AgentWatch 让你不用一直盯着 Claude Code 或 Codex。Agent 收到任务、需要授权或完成任务时，它会通过 Bark 推送通知到你的手机，手腕上的 Apple Watch 或安卓手环（华为/小米/三星等，只需同步手机通知）随之震动并显示简短事件卡片。从此告别"离开 20 分钟回来发现 Agent 卡在权限弹窗等了 19 分钟"的尴尬。
 
 > English users please see [README.md](README.md)
 
@@ -19,23 +19,24 @@ AgentWatch 让你不用一直盯着 Claude Code。只有当 Agent 需要授权�
 7. [Windows 快速开始](#windows-快速开始)
 8. [Bark 配置](#bark-配置)
 9. [Claude Code Hooks](#claude-code-hooks)
-10. [通知策略](#通知策略)
-11. [通知内容](#通知内容)
-12. [macOS 菜单栏 App](#macos-菜单栏-app)
-13. [Windows 托盘 App](#windows-托盘-app)
-14. [常用命令](#常用命令)
-15. [测试验证](#测试验证)
-16. [常见问题排查](#常见问题排查)
-17. [隐私与安全](#隐私与安全)
-18. [路线图](#路线图)
-19. [许可证](#许可证)
-20. [参与贡献](#参与贡献)
+10. [Codex Hooks](#codex-hooks)
+11. [通知策略](#通知策略)
+12. [通知内容](#通知内容)
+13. [macOS 菜单栏 App](#macos-菜单栏-app)
+14. [Windows 托盘 App](#windows-托盘-app)
+15. [常用命令](#常用命令)
+16. [测试验证](#测试验证)
+17. [常见问题排查](#常见问题排查)
+18. [隐私与安全](#隐私与安全)
+19. [路线图](#路线图)
+20. [许可证](#许可证)
+21. [参与贡献](#参与贡献)
 
 ---
 
 ## 为什么需要 AgentWatch？
 
-Claude Code 很强大，但你不需要盯着它执行每一条命令。你只需要知道：
+Claude Code 和 Codex 都很强大，但你不需要盯着它执行每一条命令。你只需要知道：
 
 - 什么时候出现了"Allow this bash command?"真实权限弹窗
 - Agent 需要你输入或确认什么
@@ -46,7 +47,7 @@ Claude Code 很强大，但你不需要盯着它执行每一条命令。你只�
 
 你让 Claude Code 处理一个任务，预计 10 分钟，于是起身去泡咖啡。回来发现 Claude Code 在权限确认弹窗等了 9 分钟——它一直在等你点击 Allow。
 
-AgentWatch 就是为这个场景诞生的。它接入 Claude Code 的事件系统，过滤掉自动执行的噪音，只把**真正需要你介入**的事件推送到你手腕上。手表一震，看一眼卡片，立刻知道要不要冲回电脑前。
+AgentWatch 就是为这个场景诞生的。它接入各 Agent 的事件系统，过滤掉自动执行的噪音，把任务、授权和完成提醒推送到你手腕上。手表一震，看一眼卡片，立刻知道要不要冲回电脑前。
 
 ### 和其他方案对比
 
@@ -134,7 +135,7 @@ PermissionDenied  ──▶     仅记录（不推送）
 
 ### 方式一：纯 CLI（最快）
 
-不需要桌面客户端。核心功能（hooks → 手表通知）完全通过命令行工作。装 Python、clone 仓库、`pip install -e .`、配置 Bark、安装 hooks，几分钟搞定。见 [macOS 快速开始](#macos-快速开始)。
+不需要桌面客户端。核心功能（hooks → 手表通知）完全通过命令行工作。装 Python、clone 仓库、`pip install -e .`、配置 Bark，再安装 Claude Code 或 Codex hooks，几分钟搞定。见 [macOS 快速开始](#macos-快速开始)。
 
 **这样就够了，通知已经在工作。**
 
@@ -142,8 +143,8 @@ PermissionDenied  ──▶     仅记录（不推送）
 
 | 平台 | 下载 | 大小 |
 |------|------|------|
-| macOS (Apple Silicon) | [AgentWatch-macOS-arm64.zip](https://github.com/dongxutang918-afk/agentwatch/releases/download/v0.8.0/AgentWatch-macOS-arm64.zip) | 42 KB |
-| Windows (x64) | [AgentWatch-Windows-x64.zip](https://github.com/dongxutang918-afk/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip) | 96 KB |
+| macOS (Apple Silicon) | [AgentWatch-macOS-arm64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.8.0/AgentWatch-macOS-arm64.zip) | 42 KB |
+| Windows (x64) | [AgentWatch-Windows-x64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip) | 96 KB |
 
 下载解压后双击运行即可。全程不需要打开终端或 PowerShell：
 
@@ -172,7 +173,7 @@ Clone 仓库后，一条命令构建桌面 App（需要 Xcode Command Line Tools
 ### 前置条件
 - macOS（Apple Silicon 或 Intel）
 - Python 3.10+
-- Claude Code（CLI 或 VS Code 插件）
+- Claude Code（CLI 或 VS Code 插件）或 Codex
 - 手机安装 [Bark](https://apps.apple.com/app/bark/id1403753865)（免费，iOS / Android 均支持）
 - Apple Watch（配对 iPhone）或安卓手环/手表（华为/小米/三星等，同步手机通知即可）
 
@@ -180,7 +181,7 @@ Clone 仓库后，一条命令构建桌面 App（需要 Xcode Command Line Tools
 
 ```bash
 # Clone 项目
-git clone https://github.com/dongxutang918-afk/agentwatch.git ~/Projects/agentwatch
+git clone https://github.com/diligentliu/agentwatch.git ~/Projects/agentwatch
 cd ~/Projects/agentwatch
 
 # 设置 Python 环境
@@ -195,8 +196,11 @@ agentwatch init
 agentwatch config bark        # 粘贴完整 Bark URL 或纯 key
 agentwatch config test        # 验证通知链路是否打通
 
-# 安装 Claude Code hooks（手动，一次性）
+# 按使用的 Agent 安装 hooks（手动，一次性）
 bash install_claude_hooks.sh
+
+# 如果使用 Codex，则安装 Codex 原生 hooks
+python install_codex_hooks.py
 
 # 验证
 agentwatch doctor             # 应显示 "Status: Ready"
@@ -221,14 +225,14 @@ open build/AgentWatch.app     # 运行在菜单栏，无 Dock 图标
 ### 前置条件
 - Windows 10 / 11
 - Python 3.10+
-- Claude Code（CLI 或 VS Code 插件）
+- Claude Code（CLI 或 VS Code 插件）或 Codex
 - 手机安装 [Bark](https://apps.apple.com/app/bark/id1403753865)（iOS / Android 均支持）
 
 ### 安装
 
 **推荐方式（下载即用）：**
 
-1. 下载 [AgentWatch-Windows-x64.zip](https://github.com/dongxutang918-afk/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip)
+1. 下载 [AgentWatch-Windows-x64.zip](https://github.com/diligentliu/agentwatch/releases/download/v0.8.0/AgentWatch-Windows-x64.zip)
 2. 解压到任意位置
 3. 双击 `AgentWatchTray.exe`
 4. 如果弹出选择目录，选你的 AgentWatch 项目目录
@@ -242,7 +246,7 @@ open build/AgentWatch.app     # 运行在菜单栏，无 Dock 图标
 
 ```powershell
 # Clone 项目
-git clone https://github.com/dongxutang918-afk/agentwatch.git
+git clone https://github.com/diligentliu/agentwatch.git
 cd agentwatch
 
 # 设置 Python 环境
@@ -333,9 +337,24 @@ powershell -ExecutionPolicy Bypass -File windows\uninstall_claude_hooks_windows.
 
 ---
 
+## Codex Hooks
+
+Codex 使用原生生命周期 hooks，配置在 `~/.codex/hooks.json`。安装器会先备份已有文件，再合并 AgentWatch 配置，不会删除其他 hooks。它注册 `UserPromptSubmit`、`PermissionRequest`、`PreToolUse`、`PostToolUse` 和 `Stop`，分别用于通知收到的新任务、权限请求、需要关注的工具事件和最终回复。
+
+```bash
+python install_codex_hooks.py       # 安装或更新
+python uninstall_codex_hooks.py     # 移除 AgentWatch 配置
+```
+
+安装后在 Codex 中运行 `/hooks`，检查并信任 AgentWatch hooks。Codex 在信任新 hook 或更新后的 hook 之前不会运行它们。默认会通知新任务和任务完成；如需关闭新任务通知，在 `config.json` 中设置 `notification_policy.notify_on_task_started` 为 `false`。
+
+Codex 的 `Stop` hook 会直接提供 `last_assistant_message`，因此完成通知正文就是 Agent 的最终回复，不依赖读取 transcript 文件。
+
+---
+
 ## 通知策略
 
-AgentWatch 默认使用 **actionable 模式**——只有真正需要你介入的事件才推送手表。
+AgentWatch 默认使用 **actionable 模式**——收到任务、任务完成和需要你介入的事件会推送到手表。
 
 ### ✅ 推送到手表
 
@@ -343,7 +362,8 @@ AgentWatch 默认使用 **actionable 模式**——只有真正需要你介入�
 |------|----------|------|
 | 真实的"Allow this command?"弹窗 | PermissionRequest | "Claude 需要你批准运行：rm -rf build/" |
 | Agent 需要你注意 | Notification（fallback） | "Claude 在等待你输入" |
-| 任务完成 | Stop | "任务完成，请验收" |
+| Codex 收到新任务 | UserPromptSubmit | 展示提交的任务内容 |
+| 任务完成 | Stop | 展示 Agent 最后的回复 |
 
 ### ❌ 仅记录日志（不震手表）
 
@@ -371,7 +391,7 @@ AgentWatch 默认使用 **actionable 模式**——只有真正需要你介入�
 
 ## 通知内容
 
-每条通知都直接展示**真实发生的内容**——没有风险等级，也没有套话式的建议动作。标题点明事件类型(已知时附带工具名),一眼即可判断;正文承载实际的命令、文件路径、URL 或 Claude 的最后回复。
+每条通知都直接展示**真实发生的内容**——没有风险等级，也没有套话式的建议动作。标题点明事件类型(已知时附带工具名),一眼即可判断;正文承载实际的任务内容、命令、文件路径、URL 或 Agent 的最终回复。
 
 | 事件类型 | 标题 | 正文 |
 |---------|------|------|

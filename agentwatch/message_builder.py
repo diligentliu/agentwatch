@@ -20,6 +20,7 @@ TITLE_MAP = {
     "permission_required": "权限请求",
     "attention_required": "需要处理",
     "task_done": "任务完成",
+    "task_started": "收到任务",
     "guard_blocked": "已拦截",
     "danger": "高风险",
     "drift": "可能跑偏",
@@ -85,6 +86,12 @@ def _build_body(
         return _body_attention(parsed)
     if event_type == "task_done":
         return _body_done(parsed)
+    if event_type == "task_started":
+        raw = (parsed or {}).get("raw_event", {}) or {}
+        prompt = raw.get("prompt", "")
+        if isinstance(prompt, str) and prompt.strip():
+            return prompt.strip()[:399] + ("…" if len(prompt.strip()) > 400 else "")
+        return "Codex 开始处理新任务"
     if event_type == "guard_blocked":
         return _body_tool_content(parsed, extra_summary, danger_info=danger_info, fallback="高风险操作已拦截")
     if event_type == "danger":
@@ -142,7 +149,7 @@ def _body_attention(parsed: dict[str, Any] | None) -> str:
 
 
 def _body_done(parsed: dict[str, Any] | None) -> str:
-    """Body for task_done — Claude's last reply, read from the transcript."""
+    """Body for task_done — the agent's last reply, when available."""
     raw = (parsed or {}).get("raw_event", {}) or {}
     text = extract_last_assistant_text(raw)
     if text:

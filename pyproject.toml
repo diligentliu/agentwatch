@@ -5,11 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "agentwatch"
 version = "0.8.0"
-description = "Claude Code / AI Agent status monitor with Apple Watch notifications"
+description = "Claude Code and Codex status monitor with Apple Watch notifications"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Dongxu Tang" }]
-keywords = ["claude-code", "ai-agent", "apple-watch", "bark", "macos", "windows", "developer-tools"]
+keywords = ["claude-code", "codex", "ai-agent", "apple-watch", "bark", "macos", "windows", "developer-tools"]
 
 [project.scripts]
 agentwatch = "agentwatch.cli:main"

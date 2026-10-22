@@ -139,7 +139,8 @@ def cmd_init() -> None:
     print("[AgentWatch] Init complete. Next steps:")
     print("  1. Edit config.json → set notifier.bark_key")
     print("  2. Run 'agentwatch test-push' to verify notifications")
-    print("  3. Run 'bash install_claude_hooks.sh' to wire up Claude Code hooks")
+    print("  3. Run 'bash install_claude_hooks.sh' for Claude Code")
+    print("     or 'python install_codex_hooks.py' for Codex")
 
 
 def cmd_test_push() -> None:
@@ -252,8 +253,8 @@ def cmd_hook(event_name: str) -> None:
                 summary = extract_tool_summary(parsed)
                 tuid = extract_tool_identity(parsed)
                 add_pending_action(action_id, tool_name, summary, tuid)
-                print(f"[AgentWatch] Approval candidate registered: {tool_name}", flush=True)
-                print(f"[AgentWatch] Waiting {delay_seconds}s to see whether PostToolUse arrives.", flush=True)
+                _hook_diag(f"[AgentWatch] Approval candidate registered: {tool_name}")
+                _hook_diag(f"[AgentWatch] Waiting {delay_seconds}s to see whether PostToolUse arrives.")
 
                 # Spawn detached background checker.
                 _spawn_pending_checker(action_id, delay_seconds)
@@ -278,17 +279,17 @@ def cmd_hook(event_name: str) -> None:
             tool_name = parsed.get("tool_name", "")
             cleared = clear_pending_action_by_match(tuid, tool_name)
             if cleared:
-                print(f"[AgentWatch] Approval candidate cleared by PostToolUse: {cleared}", flush=True)
+                _hook_diag(f"[AgentWatch] Approval candidate cleared by PostToolUse: {cleared}")
 
         elif event_name == "PermissionRequest":
             final_type = "permission_required"
             source = "hook_permission_request"
-            print(f"[AgentWatch] PermissionRequest received — pushing notification.", flush=True)
+            _hook_diag("[AgentWatch] PermissionRequest received — pushing notification.")
 
         elif event_name == "PermissionDenied":
             final_type = "permission_denied"
             source = "hook_permission_denied"
-            print(f"[AgentWatch] PermissionDenied received — logging only.", flush=True)
+            _hook_diag("[AgentWatch] PermissionDenied received — logging only.")
 
         elif category in ("permission_required", "attention_required"):
             final_type = category
@@ -321,10 +322,18 @@ def cmd_hook(event_name: str) -> None:
         append_event(log_entry)
 
         if notified and final_type != "info":
-            dispatch(msg["title"], msg["body"], nc)
+            # Hook stdout is part of Codex's machine-readable protocol (and
+            # Claude may interpret hook output as additional context).
+            from contextlib import redirect_stdout
+            with redirect_stdout(sys.stderr):
+                dispatch(msg["title"], msg["body"], nc)
 
     except Exception as exc:
         print(f"[AgentWatch] ERROR in hook processing: {exc}", file=sys.stderr, flush=True)
+
+    # Codex requires JSON output from Stop hooks; an empty object is a no-op.
+    if event_name == "Stop":
+        _emit_decision({})
 
     raise SystemExit(0)
 
