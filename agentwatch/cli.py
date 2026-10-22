@@ -1251,8 +1251,8 @@ def build_parser() -> argparse.ArgumentParser:
     away_sub.add_parser("status", help="Show Away mode status (default)")
 
     # hook
-    p_hook = sub.add_parser("hook", help="Claude Code hook entry point (called by hooks)")
-    p_hook.add_argument("--event", required=True, choices=["PreToolUse", "PostToolUse", "Notification", "Stop", "PermissionRequest", "PermissionDenied"])
+    p_hook = sub.add_parser("hook", help="Claude Code or Codex hook entry point")
+    p_hook.add_argument("--event", required=True, choices=["PreToolUse", "PostToolUse", "Notification", "Stop", "PermissionRequest", "PermissionDenied", "UserPromptSubmit"])
 
     # task
     p_task = sub.add_parser("task", help="Manage task boundaries")
