@@ -1,0 +1,32 @@
+name: Build desktop apps
+
+on:
+  push:
+    tags:
+      - "build-*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: Build macOS menu bar app
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build app bundle
+        run: bash macos/build_app.sh
+
+  windows:
+    name: Build Windows tray app
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build app
+        shell: pwsh
+        run: ./windows/build_app.ps1
